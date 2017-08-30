@@ -6,9 +6,10 @@
 #include "parse.h"
 #include "lex.h"
 
-#define EXP0(type) new_ast(type, NULL, NULL)
-#define EXP1(type, lhs) new_ast(type, lhs, NULL)
-#define EXP2(type, lhs, rhs) new_ast(type, lhs, rhs)
+#define EXP0(type) new_ast(type, NULL, NULL, NULL)
+#define EXP1(type, lhs) new_ast(type, lhs, NULL, NULL)
+#define EXP2(type, lhs, rhs) new_ast(type, lhs, rhs, NULL)
+#define EXP3(type, lhs, rhs, extra) new_ast(type, lhs, rhs, extra);
 
 static int get_next_token(State* S)
 {
@@ -56,13 +57,14 @@ static inline bool expect(State* S, int tok)
 
 
 
-static AST* new_ast(ASTTYPE type, AST* left, AST* right)
+static AST* new_ast(ASTTYPE type, AST* left, AST* right, AST* extra)
 {
     AST* ret = malloc(sizeof(AST));
 
     ret->type = type;
     ret->left = left;
     ret->right = right;
+    ret->extra = extra;
     ret->next = NULL;
     ret->val.str = NULL;
 
@@ -172,7 +174,12 @@ static AST* parse_ifstmt(State* S)
 
     AST* body = parse_stmt(S);
 
-    AST* ret = EXP2(IFSTMT, expr, body);
+    AST* else_body = NULL;
+    if (accept(S, TK_ELSE)) {
+        else_body = parse_stmt(S);
+    }
+
+    AST* ret = EXP3(IFSTMT, expr, body, else_body);
     return ret;
 }
 
@@ -208,6 +215,10 @@ void destroy_ast(AST* ast)
     }
     if (ast->right) {
         destroy_ast(ast->right);
+    }
+
+    if (ast->extra) {
+        destroy_ast(ast->extra);
     }
 
     free(ast);
@@ -267,5 +278,9 @@ void print_ast(AST* ast, int level)
 
     if (ast->right) {
         print_ast(ast->right, level+1);
+    }
+
+    if (ast->extra) {
+        print_ast(ast->extra, level+1);
     }
 }

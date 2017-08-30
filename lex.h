@@ -12,6 +12,7 @@ typedef enum TOKEN {
     TK_LONG,
     TK_FUNCTION,
     TK_IF,
+    TK_ELSE,
     TK_TRUE,
     TK_FALSE,
     TK_HTML,

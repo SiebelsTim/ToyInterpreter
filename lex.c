@@ -119,6 +119,8 @@ static int lex_ident(State* S)
         ret = TK_FUNCTION;
     } else if (strcmp(str, "if") == 0) {
         ret = TK_IF;
+    } else if (strcmp(str, "else") == 0) {
+        ret = TK_ELSE;
     } else if (strcmp(str, "true") == 0) {
         ret = TK_TRUE;
     } else if (strcmp(str, "false") == 0) {
@@ -306,7 +308,8 @@ static char* tokennames[] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, // Ends with 255
 
-    "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "IF", "TRUE", "FALSE", "HTML", "END"
+    "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "IF", "ELSE",
+    "TRUE", "FALSE", "HTML", "END"
 };
 
 char* get_token_name(int tok)

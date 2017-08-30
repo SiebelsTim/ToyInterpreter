@@ -20,6 +20,7 @@ typedef struct AST {
     } val;
     struct AST* left;
     struct AST* right;
+    struct AST* extra;
     struct AST* next;
 } AST;
 

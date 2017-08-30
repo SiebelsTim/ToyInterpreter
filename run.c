@@ -177,8 +177,9 @@ static void run_ifstmt(Runtime* R, AST* ast)
     pop(R);
     if (boolean) {
         run(R, ast->right);
+    } else if (ast->extra) {
+        run(R, ast->extra);
     }
-    // else do nothing
 }
 
 static void run_stringaddexpr(Runtime* R, AST* ast)

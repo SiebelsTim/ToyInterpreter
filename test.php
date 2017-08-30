@@ -5,5 +5,12 @@ echo "Hallo Welt";
 echo 42 . "\n";
 
 if (false) {
-    echo "SHIT YEARH";
+    echo "IF BRANCH\n";
+} else {
+    echo "ELSE BRANCH\n";
 }
+
+if (false)
+    echo "NOT EXECUTED";
+echo "EXECUTED\n";
+
