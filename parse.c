@@ -24,7 +24,7 @@ noreturn static inline void parseerror(State* S, char* fmt, ...)
     va_end(ap);
 
     char buf[256];
-    snprintf(buf, arrcount(buf), "%s on line %d.", msgbuf, S->lineno);
+    snprintf(buf, arrcount(buf), "Parse error: %s on line %d.", msgbuf, S->lineno);
 
     S->val = ERROR;
     S->error = strdup(buf);
@@ -63,7 +63,7 @@ static AST* new_ast(ASTTYPE type, AST* left, AST* right)
     ret->left = left;
     ret->right = right;
     ret->next = NULL;
-    ret->val = NULL;
+    ret->val.str = NULL;
 
     return ret;
 }
@@ -97,8 +97,15 @@ static AST* parse_primary(State* S)
     AST* ret;
     if (S->token == TK_STRING) {
         ret = EXP0(STRINGEXPR);
-        ret->val = strdup(S->u.string);
+        ret->val.str = strdup(S->u.string);
         expect(S, TK_STRING);
+        return ret;
+    }
+
+    if (S->token == TK_LONG) {
+        ret = EXP0(LONGEXPR);
+        ret->val.lint = S->u.lint;
+        expect(S, TK_LONG);
         return ret;
     }
 
@@ -144,7 +151,9 @@ AST* parse(FILE* file)
 
 void destroy_ast(AST* ast)
 {
-    free(ast->val);
+    if (ast->type == STRINGEXPR) {
+        free(ast->val.str);
+    }
     if (ast->type == BLOCKSTMT) {
         destroy_ast(ast->next);
     }
@@ -170,6 +179,8 @@ static char* get_ast_typename(ASTTYPE type)
             return "STRINGEXPR";
         case STRINGBINOP:
             return "STRINGBINOP";
+        case LONGEXPR:
+            return "LONGEXPR";
         default:
             return "UNKNOWNTYPE";
     }
@@ -182,10 +193,17 @@ void print_ast(AST* ast, int level)
         putchar(' ');
     }
     printf("%s: ", get_ast_typename(ast->type));
-    if (ast->val) {
-        puts(ast->val);
-    } else {
-        puts("");
+
+    switch (ast->type) {
+        case STRINGEXPR:
+            puts(ast->val.str);
+            break;
+        case LONGEXPR:
+            printf("%ld\n", ast->val.lint);
+            break;
+        default:
+            puts("");
+            break;
     }
 
     if (ast->type == BLOCKSTMT) {

@@ -7,12 +7,16 @@ typedef enum ASTTYPE {
     BLOCKSTMT,
     ECHOSTMT,
     STRINGEXPR,
-    STRINGBINOP
+    STRINGBINOP,
+    LONGEXPR
 } ASTTYPE;
 
 typedef struct AST {
     ASTTYPE type;
-    void* val;
+    union {
+        char* str;
+        long lint;
+    } val;
     struct AST* left;
     struct AST* right;
     struct AST* next;

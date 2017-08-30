@@ -45,6 +45,11 @@ static int is_str_start(int c)
     return c == '"';
 }
 
+static int is_num_start(int c)
+{
+    return isdigit(c);
+}
+
 static int is_str(int c)
 {
     return isalnum(c) || c == '_';
@@ -179,6 +184,21 @@ static TOKEN lex_str(State* S)
     return TK_STRING;
 }
 
+int lex_num(State* S)
+{
+    char* numstr = fetch_str(S, isdigit);
+    long n = strtol(numstr, NULL, 10);
+    free(numstr);
+
+    if (S->val == MALLOCSTR) {
+        free(S->u.string);
+    }
+    S->val = LONGVAL;
+    S->u.lint = n;
+
+    return TK_LONG;
+}
+
 int get_token(State* S)
 {
     if (S->lexchar == EOF) {
@@ -214,6 +234,10 @@ int get_token(State* S)
 
     if (is_str_start(c)) {
         return lex_str(S);
+    }
+
+    if (is_num_start(c)) {
+        return lex_num(S);
     }
 
     get_next_char(S); // Return ascii value
@@ -274,7 +298,7 @@ static char* tokennames[] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, // Ends with 255
 
-    "OPENTAG", "ECHO", "STRING", "FUNCTION", "HTML", "END"
+    "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "HTML", "END"
 };
 
 char* get_token_name(int tok)

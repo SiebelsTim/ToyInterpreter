@@ -2,14 +2,27 @@
 #include <stdnoreturn.h>
 #include <memory.h>
 #include <assert.h>
+#include <tgmath.h>
 #include "run.h"
 #include "parse.h"
+#include "lex.h"
 
 
 noreturn static void runtimeerror(char* fmt)
 {
     puts(fmt);
     abort();
+}
+
+
+static Variant* stackidx(Runtime* R, long idx)
+{
+    if (idx < 0) {
+        idx = R->stacksize + idx;
+    }
+
+    assert(idx < (int)R->stacksize && idx >= 0);
+    return &R->stack[idx];
 }
 
 static Runtime* create_runtime()
@@ -25,6 +38,11 @@ static Runtime* create_runtime()
 
 static void destroy_runtime(Runtime* R)
 {
+    for (int i = 0; i < (int) R->stacksize; ++i) {
+        if (stackidx(R, i)->type == STRING) {
+            free(stackidx(R, i)->u.str);
+        }
+    }
     free(R->stack);
     free(R);
 }
@@ -50,7 +68,7 @@ static void push(Runtime* R, Variant val)
 static inline Variant* top(Runtime* R)
 {
     assert(R->stacksize > 0);
-    return &R->stack[R->stacksize-1];
+    return stackidx(R, -1);
 }
 
 static inline void pop(Runtime* R) {
@@ -72,6 +90,35 @@ static inline void pushstr(Runtime* R, char* str)
     push(R, var);
 }
 
+
+static inline void pushlong(Runtime* R, long n)
+{
+    Variant var;
+    var.type = LONG;
+    var.u.lint = n;
+    push(R, var);
+}
+
+static char* tostring(Runtime* R, int idx)
+{
+    char* buf;
+    Variant* var = stackidx(R, idx);
+    switch (var->type) {
+        case STRING:
+            assert(var->u.str);
+            return strdup(var->u.str);
+        case LONG:
+            buf = malloc(sizeof(char) * 20); // Let this be "enough"
+            snprintf(buf, sizeof(char) * 20, "%ld", var->u.lint);
+            return buf;
+        case UNDEFINED:
+            return strdup("<UNDEFINED>");
+    }
+
+    puts("May not reach end of tostring function.");
+    abort();
+}
+
 static void run(Runtime* R, AST* ast);
 
 static void run_blockstmt(Runtime* R, AST* ast)
@@ -86,9 +133,10 @@ static void run_echostmt(Runtime* R, AST* ast)
 {
     assert(ast->left);
     run(R, ast->left);
-    Variant* val = top(R);
-    assert(val->type == STRING);
-    puts(val->u.str);
+    char* str = tostring(R, -1);
+    puts(str);
+    free(str);
+
     pop(R);
 }
 
@@ -96,10 +144,10 @@ static void run_stringaddexpr(Runtime* R, AST* ast)
 {
     assert(ast->left && ast->right);
     run(R, ast->left);
-    char* lhs = strdup(top(R)->u.str);
+    char* lhs = tostring(R, -1);
     pop(R);
     run(R, ast->right);
-    char* rhs = strdup(top(R)->u.str);
+    char* rhs = tostring(R, -1);
     pop(R);
 
     char* ret = calloc((strlen(lhs) + strlen(rhs) + 1), sizeof(char));
@@ -113,7 +161,12 @@ static void run_stringaddexpr(Runtime* R, AST* ast)
 
 static void run_stringexpr(Runtime* R, AST* ast)
 {
-    pushstr(R, ast->val);
+    pushstr(R, ast->val.str);
+}
+
+static void run_longexpr(Runtime* R, AST* ast)
+{
+    pushlong(R, ast->val.lint);
 }
 
 static void run(Runtime* R, AST* ast)
@@ -131,6 +184,9 @@ static void run(Runtime* R, AST* ast)
         case STRINGEXPR:
             run_stringexpr(R, ast);
             break;
+        case LONGEXPR:
+            run_longexpr(R, ast);
+            break;
     }
 }
 
@@ -144,4 +200,22 @@ void run_file(FILE* file) {
     destroy_runtime(R);
 
     destroy_ast(ast);
+}
+
+void print_stack(Runtime* R)
+{
+    for (int i = 0; i < R->stacksize; ++i) {
+        Variant* var = stackidx(R, i);
+        switch (var->type) {
+            case UNDEFINED:
+                printf("#%d UNDEFINED", i);
+                break;
+            case STRING:
+                printf("#%d STRING: %s", i, var->u.str);
+                break;
+            case LONG:
+                printf("#%d LONG: %ld",i, var->u.lint);
+                break;
+        }
+    }
 }

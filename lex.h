@@ -9,6 +9,7 @@ typedef enum TOKEN {
     TK_OPENTAG = 256, // Make them outside ascii range
     TK_ECHO,
     TK_STRING,
+    TK_LONG,
     TK_FUNCTION,
     TK_HTML,
     TK_END
@@ -21,6 +22,7 @@ typedef enum VALTYPE {
     NONE,
     MALLOCSTR,
     STATICSTR,
+    LONGVAL,
     ERROR
 } VALTYPE;
 
@@ -33,6 +35,7 @@ typedef struct State {
     VALTYPE val;
     union {
         char* string;
+        long lint;
     } u;
     char* error;
 } State;

@@ -8,13 +8,16 @@
 #include <stdio.h>
 
 enum VARIANTTYPE {
-    STRING
+    UNDEFINED = 0,
+    STRING,
+    LONG
 };
 
 typedef struct Variant {
     enum VARIANTTYPE type;
     union {
         char* str;
+        long lint;
     } u;
 } Variant;
 
