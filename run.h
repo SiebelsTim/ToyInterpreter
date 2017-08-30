@@ -29,4 +29,6 @@ typedef struct Runtime {
 
 void run_file(FILE*);
 
+void print_stack(Runtime*);
+
 #endif //PHPINTERP_RUN_H

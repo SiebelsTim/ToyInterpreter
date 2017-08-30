@@ -240,8 +240,6 @@ static void run(Runtime* R, AST* ast)
 
 void run_file(FILE* file) {
     AST* ast = parse(file);
-    print_ast(ast, 0);
-    puts("EXECUTING \n\n");
 
     Runtime* R = create_runtime();
     run(R, ast);
@@ -252,6 +250,8 @@ void run_file(FILE* file) {
 
 void print_stack(Runtime* R)
 {
+    printf("Stack, size: %zu\n", R->stacksize);
+    puts("===========================\n");
     for (int i = 0; i < (int) R->stacksize; ++i) {
         Variant* var = stackidx(R, i);
         switch (var->type) {
@@ -265,5 +265,6 @@ void print_stack(Runtime* R)
                 printf("#%d LONG: %ld",i, var->u.lint);
                 break;
         }
+        puts("");
     }
 }
