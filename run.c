@@ -134,7 +134,7 @@ static void run_echostmt(Runtime* R, AST* ast)
     assert(ast->left);
     run(R, ast->left);
     char* str = tostring(R, -1);
-    puts(str);
+    printf("%s", str);
     free(str);
 
     pop(R);

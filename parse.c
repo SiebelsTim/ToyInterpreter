@@ -12,7 +12,8 @@
 
 static int get_next_token(State* S)
 {
-    return S->token = get_token(S);
+    S->token = get_token(S);
+    return S->token;
 }
 
 noreturn static inline void parseerror(State* S, char* fmt, ...)
@@ -136,9 +137,10 @@ AST* parse(FILE* file)
 {
     State* S = new_state(file);
     AST* ret = EXP0(BLOCKSTMT);
-    int tok;
-    while ((tok = get_next_token(S)) != TK_END) {
-        if (S->mode != PHP || tok == TK_OPENTAG) {
+    get_next_token(S); // init
+    while (S->token != TK_END) {
+        if (S->mode != PHP || S->token == TK_OPENTAG) {
+            get_next_token(S);
             continue;
         }
 
@@ -154,7 +156,7 @@ void destroy_ast(AST* ast)
     if (ast->type == STRINGEXPR) {
         free(ast->val.str);
     }
-    if (ast->type == BLOCKSTMT) {
+    if (ast->next) {
         destroy_ast(ast->next);
     }
 
