@@ -50,14 +50,20 @@ static int is_str(int c)
     return isalnum(c) || c == '_';
 }
 
-static TOKEN syntax_error(State* S, char* msg)
+static TOKEN syntax_error(State* S, char* fmt, ...)
 {
-    if (S->val == MALLOCSTR) {
-        free(S->u.string);
-    }
-    S->val = MALLOCSTR;
-    char* dest = malloc((strlen(msg)+1) * sizeof(char));
-    S->u.string = strcpy(dest, msg);
+    va_list ap;
+    char msgbuf[256];
+    va_start(ap, fmt);
+    vsnprintf(msgbuf, arrcount(msgbuf), fmt, ap);
+    va_end(ap);
+
+    char buf[256];
+    snprintf(buf, arrcount(buf), "%s on line %d.", msgbuf, S->lineno);
+
+    S->val = ERROR;
+    S->error = strdup(buf);
+    puts(S->error);
 
     abort();
 }
@@ -273,7 +279,7 @@ static char* tokennames[] = {
 
 char* get_token_name(int tok)
 {
-    if (tok >= 0 && tok < arrcount(tokennames)) {
+    if (tok >= 0 && tok < (int)arrcount(tokennames)) {
         if (tokennames[tok]) {
             return tokennames[tok];
         }
