@@ -3,6 +3,7 @@
 #include <memory.h>
 #include <assert.h>
 #include <tgmath.h>
+#include <stdbool.h>
 #include "run.h"
 #include "parse.h"
 #include "lex.h"
@@ -99,6 +100,14 @@ static inline void pushlong(Runtime* R, long n)
     push(R, var);
 }
 
+static inline void pushbool(Runtime* R, bool b)
+{
+    Variant var;
+    var.type = LONG;
+    var.u.lint = b;
+    push(R, var);
+}
+
 static char* tostring(Runtime* R, int idx)
 {
     char* buf;
@@ -117,6 +126,26 @@ static char* tostring(Runtime* R, int idx)
 
     puts("May not reach end of tostring function.");
     abort();
+}
+
+static long tolong(Runtime* R, int idx)
+{
+    Variant* var = stackidx(R, idx);
+    switch (var->type) {
+        case UNDEFINED:
+            return 0;
+        case STRING:
+            for (int i = 0; var->u.str[i] != 0; ++i) {
+                if (var->u.str[i] != '0' && var->u.str[i] != ' ') {
+                    return 1;
+                }
+            }
+            return 0;
+        case LONG:
+            return var->u.lint;
+        default:
+            runtimeerror("tolong for undefined value.");
+    }
 }
 
 static void run(Runtime* R, AST* ast);
@@ -138,6 +167,18 @@ static void run_echostmt(Runtime* R, AST* ast)
     free(str);
 
     pop(R);
+}
+
+static void run_ifstmt(Runtime* R, AST* ast)
+{
+    assert(ast->left);
+    run(R, ast->left);
+    long boolean = tolong(R, -1);
+    pop(R);
+    if (boolean) {
+        run(R, ast->right);
+    }
+    // else do nothing
 }
 
 static void run_stringaddexpr(Runtime* R, AST* ast)
@@ -178,6 +219,9 @@ static void run(Runtime* R, AST* ast)
         case ECHOSTMT:
             run_echostmt(R, ast);
             break;
+        case IFSTMT:
+            run_ifstmt(R, ast);
+            break;
         case STRINGBINOP:
             run_stringaddexpr(R, ast);
             break;
@@ -186,6 +230,9 @@ static void run(Runtime* R, AST* ast)
             break;
         case LONGEXPR:
             run_longexpr(R, ast);
+            break;
+        default:
+            runtimeerror("Unexpected AST Type");
             break;
     }
 }
@@ -204,7 +251,7 @@ void run_file(FILE* file) {
 
 void print_stack(Runtime* R)
 {
-    for (int i = 0; i < R->stacksize; ++i) {
+    for (int i = 0; i < (int) R->stacksize; ++i) {
         Variant* var = stackidx(R, i);
         switch (var->type) {
             case UNDEFINED:

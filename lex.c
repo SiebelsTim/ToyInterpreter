@@ -76,7 +76,7 @@ static TOKEN syntax_error(State* S, char* fmt, ...)
 
 static char* str_append(char* str, char append, size_t* size, size_t* capacity)
 {
-    assert(capacity != NULL);
+    assert(capacity != NULL && size != NULL);
     if (*size >= *capacity) {
         char* tmp = resize_str(str, *capacity, *capacity * 2);
         if (!tmp) return NULL;
@@ -99,6 +99,8 @@ static char* fetch_str(State* S, int (*proceed_condition)(int c))
         get_next_char(S);
     }
 
+    ret = str_append(ret, '\0', &pos, &capacity);
+
     return ret;
 }
 
@@ -115,6 +117,12 @@ static int lex_ident(State* S)
         ret = TK_ECHO;
     } else if (strcmp(str, "function") == 0) {
         ret = TK_FUNCTION;
+    } else if (strcmp(str, "if") == 0) {
+        ret = TK_IF;
+    } else if (strcmp(str, "true") == 0) {
+        ret = TK_TRUE;
+    } else if (strcmp(str, "false") == 0) {
+        ret = TK_FALSE;
     } else {
         char* msg = malloc((strlen("Unknown identifier %s") + strlen(str)) * sizeof(char));
         sprintf(msg, "Unknown identifier %s", str);
@@ -298,7 +306,7 @@ static char* tokennames[] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, // Ends with 255
 
-    "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "HTML", "END"
+    "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "IF", "TRUE", "FALSE", "HTML", "END"
 };
 
 char* get_token_name(int tok)

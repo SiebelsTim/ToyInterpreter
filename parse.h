@@ -6,6 +6,7 @@
 typedef enum ASTTYPE {
     BLOCKSTMT,
     ECHOSTMT,
+    IFSTMT,
     STRINGEXPR,
     STRINGBINOP,
     LONGEXPR

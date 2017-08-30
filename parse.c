@@ -82,11 +82,19 @@ static AST* block_append(AST* block, AST* ast)
 }
 
 static AST* parse_echostmt(State* S);
+static AST* parse_ifstmt(State* S);
+static AST* parse_blockstmt(State* S);
 
 static AST* parse_stmt(State* S)
 {
     if (accept(S, TK_ECHO)) {
         return parse_echostmt(S);
+    }
+    if (accept(S, TK_IF)) {
+        return parse_ifstmt(S);
+    }
+    if (accept(S, '{')) {
+        return parse_blockstmt(S);
     }
 
     parseerror(S, "Unexpected token '%s', (0x%x).", get_token_name(S->token), S->token);
@@ -110,6 +118,17 @@ static AST* parse_primary(State* S)
         return ret;
     }
 
+    if (accept(S, TK_TRUE)) {
+        ret = EXP0(LONGEXPR);
+        ret->val.lint = 1;
+        return ret;
+    }
+    if (accept(S, TK_FALSE)) {
+        ret = EXP0(LONGEXPR);
+        ret->val.lint = 0;
+        return ret;
+    }
+
     parseerror(S, "Unexpected token '%s', expected primary", get_token_name(S->token));
 }
 
@@ -130,6 +149,30 @@ static AST* parse_echostmt(State* S)
     expect(S, ';');
 
     AST* ret = EXP1(ECHOSTMT, expr);
+    return ret;
+}
+
+static AST* parse_blockstmt(State* S)
+{
+    AST* ret = EXP0(BLOCKSTMT);
+    while (S->token != '}') {
+        block_append(ret, parse_stmt(S));
+    }
+    expect(S, '}');
+
+    return ret;
+}
+
+static AST* parse_ifstmt(State* S)
+{
+    expect(S, '(');
+    AST* expr = parse_expr(S);
+
+    expect(S, ')');
+
+    AST* body = parse_stmt(S);
+
+    AST* ret = EXP2(IFSTMT, expr, body);
     return ret;
 }
 
@@ -177,6 +220,8 @@ static char* get_ast_typename(ASTTYPE type)
             return "BLOCKSTMT";
         case ECHOSTMT:
             return "ECHOSTMT";
+        case IFSTMT:
+            return "IFSTMT";
         case STRINGEXPR:
             return "STRINGEXPR";
         case STRINGBINOP:
