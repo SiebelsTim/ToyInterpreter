@@ -21,13 +21,24 @@ typedef struct Variant {
     } u;
 } Variant;
 
+typedef struct Variable {
+    char* name;
+    Variant value;
+} Variable;
+
+typedef struct Scope Scope;
+
 typedef struct Runtime {
     size_t stacksize;
     size_t stackcapacity;
     Variant* stack;
+    Scope* scope;
 } Runtime;
 
 void run_file(FILE*);
+void runtimeerror(char* );
+Variant cpy_var(Variant var);
+void free_var(Variant var);
 
 void print_stack(Runtime*);
 

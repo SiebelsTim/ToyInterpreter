@@ -35,22 +35,27 @@ static int get_next_char(State* S)
     return S->lexchar;
 }
 
-static int is_ident_start(int c)
+static inline int is_ident_start(int c)
 {
     return isalpha(c);
 }
 
-static int is_str_start(int c)
+static inline int is_str_start(int c)
 {
     return c == '"';
 }
 
-static int is_num_start(int c)
+static inline int is_num_start(int c)
 {
     return isdigit(c);
 }
 
-static int is_str(int c)
+static inline int is_var_start(int c)
+{
+    return c == '$';
+}
+
+static inline int is_str(int c)
 {
     return isalnum(c) || c == '_';
 }
@@ -134,6 +139,21 @@ static int lex_ident(State* S)
 
     free(str);
     return ret;
+}
+
+static TOKEN lex_var(State* S)
+{
+    assert(is_var_start(S->lexchar));
+    get_next_char(S); // Skip $
+    char* str = fetch_str(S, is_str);
+
+    if (S->val == MALLOCSTR) {
+        free(S->u.string);
+    }
+    S->val = MALLOCSTR;
+    S->u.string = str;
+
+    return TK_VAR;
 }
 
 static TOKEN lex_str(State* S)
@@ -242,6 +262,10 @@ int get_token(State* S)
         return lex_ident(S);
     }
 
+    if (is_var_start(c)) {
+        return lex_var(S);
+    }
+
     if (is_str_start(c)) {
         return lex_str(S);
     }
@@ -309,7 +333,7 @@ static char* tokennames[] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, // Ends with 255
 
     "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "IF", "ELSE",
-    "TRUE", "FALSE", "HTML", "END"
+    "TRUE", "FALSE", "VAR", "HTML", "END"
 };
 
 char* get_token_name(int tok)

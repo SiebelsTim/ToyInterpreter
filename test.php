@@ -15,3 +15,9 @@ if (false)
 echo "EXECUTED\n";
 
 echo (((21)) + (21 * 1)) .  "\n";
+
+$a = 1000;
+$a = 10 + 10;
+echo $a . "\n";
+$a = "Hallo" . "Tim\n";
+echo $a;

@@ -9,7 +9,9 @@ typedef enum ASTTYPE {
     IFSTMT,
     STRINGEXPR,
     BINOP,
-    LONGEXPR
+    LONGEXPR,
+    VAREXPR,
+    ASSIGNMENTEXPR
 } ASTTYPE;
 
 typedef struct AST {

@@ -15,6 +15,7 @@ typedef enum TOKEN {
     TK_ELSE,
     TK_TRUE,
     TK_FALSE,
+    TK_VAR,
     TK_HTML,
     TK_END
 } TOKEN;

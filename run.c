@@ -7,9 +7,26 @@
 #include "run.h"
 #include "parse.h"
 #include "lex.h"
+#include "scope.h"
 
+Variant cpy_var(Variant var)
+{
+    Variant ret = var;
+    if (ret.type == STRING) {
+        ret.u.str = strdup(var.u.str);
+    }
 
-noreturn static void runtimeerror(char* fmt)
+    return ret;
+}
+
+void free_var(Variant var)
+{
+    if (var.type == STRING) {
+        free(var.u.str);
+    }
+}
+
+noreturn void runtimeerror(char* fmt)
 {
     puts(fmt);
     abort();
@@ -33,6 +50,7 @@ static Runtime* create_runtime()
     ret->stackcapacity = 10;
     ret->stacksize = 0;
     ret->stack = calloc(ret->stackcapacity, sizeof(*ret->stack));
+    ret->scope = create_scope();
 
     return ret;
 }
@@ -45,6 +63,7 @@ static void destroy_runtime(Runtime* R)
         }
     }
     free(R->stack);
+    destroy_scope(R->scope);
     free(R);
 }
 
@@ -251,6 +270,19 @@ static void run_longexpr(Runtime* R, AST* ast)
     pushlong(R, ast->val.lint);
 }
 
+static void run_varexpr(Runtime* R, AST* ast)
+{
+    push(R, lookup(R, ast->val.str));
+}
+
+static void run_assignmentexpr(Runtime* R, AST* ast)
+{
+    run(R, ast->left);
+    Variant* val = top(R);
+    set_var(R, ast->val.str, *val);
+    // result of running the expr still lies on the stack.
+}
+
 static void run(Runtime* R, AST* ast)
 {
     switch (ast->type) {
@@ -271,6 +303,12 @@ static void run(Runtime* R, AST* ast)
             break;
         case LONGEXPR:
             run_longexpr(R, ast);
+            break;
+        case ASSIGNMENTEXPR:
+            run_assignmentexpr(R, ast);
+            break;
+        case VAREXPR:
+            run_varexpr(R, ast);
             break;
         default:
             runtimeerror("Unexpected AST Type");

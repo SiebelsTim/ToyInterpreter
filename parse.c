@@ -87,6 +87,7 @@ static AST* parse_expr(State* S);
 static AST* parse_echostmt(State* S);
 static AST* parse_ifstmt(State* S);
 static AST* parse_blockstmt(State* S);
+static AST* parse_assignstmt(State* S);
 
 static AST* parse_stmt(State* S)
 {
@@ -98,6 +99,9 @@ static AST* parse_stmt(State* S)
     }
     if (accept(S, '{')) {
         return parse_blockstmt(S);
+    }
+    if (S->token == TK_VAR) {
+        return parse_assignstmt(S);
     }
 
     parseerror(S, "Unexpected token '%s', (0x%x).", get_token_name(S->token), S->token);
@@ -129,6 +133,12 @@ static AST* parse_primary(State* S)
     if (accept(S, TK_FALSE)) {
         ret = EXP0(LONGEXPR);
         ret->val.lint = 0;
+        return ret;
+    }
+
+    if (accept(S, TK_VAR)) {
+        ret = EXP0(VAREXPR);
+        ret->val.str = strdup(S->u.string);
         return ret;
     }
 
@@ -209,6 +219,22 @@ static AST* parse_ifstmt(State* S)
     return ret;
 }
 
+static AST* parse_assignstmt(State* S)
+{
+    assert(S->token == TK_VAR);
+    char* name = strdup(S->u.string);
+    get_next_token(S); // Skip TK_VAR
+
+    expect(S, '=');
+    AST* val = parse_expr(S);
+    AST* ret = EXP1(ASSIGNMENTEXPR, val);
+    ret->val.str = name;
+
+    expect(S, ';');
+
+    return ret;
+}
+
 AST* parse(FILE* file)
 {
     State* S = new_state(file);
@@ -229,7 +255,7 @@ AST* parse(FILE* file)
 
 void destroy_ast(AST* ast)
 {
-    if (ast->type == STRINGEXPR) {
+    if (ast->type == STRINGEXPR || ast->type == VAREXPR || ast->type == ASSIGNMENTEXPR) {
         free(ast->val.str);
     }
     if (ast->next) {
@@ -265,6 +291,10 @@ static char* get_ast_typename(ASTTYPE type)
             return "LONGEXPR";
         case BINOP:
             return "BINOP";
+        case VAREXPR:
+            return "VAREXPR";
+        case ASSIGNMENTEXPR:
+            return "ASSIGNMENTEXPR";
         default:
             return "UNKNOWNTYPE";
     }
