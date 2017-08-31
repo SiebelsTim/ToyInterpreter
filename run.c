@@ -82,7 +82,7 @@ static inline void try_stack_resize(Runtime* R)
 static void push(Runtime* R, Variant val)
 {
     try_stack_resize(R);
-    R->stack[R->stacksize++] = val;
+    R->stack[R->stacksize++] = cpy_var(val);
 }
 
 static inline Variant* top(Runtime* R)
@@ -106,7 +106,7 @@ static inline void pushstr(Runtime* R, char* str)
 {
     Variant var;
     var.type = STRING;
-    var.u.str = strdup(str);
+    var.u.str = str;
     push(R, var);
 }
 

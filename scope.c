@@ -30,7 +30,7 @@ Variant lookup(Runtime *R, char *str)
     Variable* vars = R->scope->vars;
     for (size_t i = 0; i < R->scope->size; ++i) {
         if (strcmp(str, vars[i].name) == 0) {
-            return cpy_var(vars[i].value);
+            return vars[i].value;
         }
     }
 
