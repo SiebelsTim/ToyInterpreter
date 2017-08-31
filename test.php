@@ -14,3 +14,4 @@ if (false)
     echo "NOT EXECUTED";
 echo "EXECUTED\n";
 
+echo (((21)) + (21 * 1)) .  "\n";

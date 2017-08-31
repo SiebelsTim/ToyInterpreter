@@ -8,7 +8,7 @@ typedef enum ASTTYPE {
     ECHOSTMT,
     IFSTMT,
     STRINGEXPR,
-    STRINGBINOP,
+    BINOP,
     LONGEXPR
 } ASTTYPE;
 

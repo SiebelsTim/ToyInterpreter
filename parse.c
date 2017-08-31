@@ -83,6 +83,7 @@ static AST* block_append(AST* block, AST* ast)
     return block;
 }
 
+static AST* parse_expr(State* S);
 static AST* parse_echostmt(State* S);
 static AST* parse_ifstmt(State* S);
 static AST* parse_blockstmt(State* S);
@@ -131,15 +132,40 @@ static AST* parse_primary(State* S)
         return ret;
     }
 
+    if (accept(S, '(')) {
+        ret = parse_expr(S);
+        expect(S, ')');
+        return ret;
+    }
+
     parseerror(S, "Unexpected token '%s', expected primary", get_token_name(S->token));
 }
 
 
 static AST* parse_expr(State* S)
 {
+
     AST* ret = parse_primary(S);
+
     if (accept(S, '.')) {
-        ret = EXP2(STRINGBINOP, ret, parse_expr(S));
+        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret->val.lint = '.';
+    }
+    if (accept(S, '+')) {
+        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret->val.lint = '+';
+    }
+    if (accept(S, '-')) {
+        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret->val.lint = '-';
+    }
+    if (accept(S, '*')) {
+        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret->val.lint = '*';
+    }
+    if (accept(S, '/')) {
+        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret->val.lint = '/';
     }
     return ret;
 }
@@ -235,10 +261,10 @@ static char* get_ast_typename(ASTTYPE type)
             return "IFSTMT";
         case STRINGEXPR:
             return "STRINGEXPR";
-        case STRINGBINOP:
-            return "STRINGBINOP";
         case LONGEXPR:
             return "LONGEXPR";
+        case BINOP:
+            return "BINOP";
         default:
             return "UNKNOWNTYPE";
     }

@@ -201,6 +201,46 @@ static void run_stringaddexpr(Runtime* R, AST* ast)
     free(rhs);
 }
 
+static void run_binop(Runtime* R, AST* ast)
+{
+    if (ast->val.lint == '.') {
+        return run_stringaddexpr(R, ast);
+    }
+
+    if (ast->val.lint == '+' || ast->val.lint == '-' || ast->val.lint == '*' ||
+        ast->val.lint == '/') {
+        run(R, ast->left);
+        long lhs = tolong(R, -1);
+        pop(R);
+        run(R, ast->right);
+        long rhs = tolong(R, -1);
+        pop(R);
+        long result;
+        switch (ast->val.lint) {
+            case '+':
+                result = lhs + rhs;
+                break;
+            case '-':
+                result = lhs - rhs;
+                break;
+            case '*':
+                result = lhs * rhs;
+                break;
+            case '/':
+                result = lhs / rhs;
+                break;
+            default:
+                assert(false);
+        }
+        pushlong(R, result);
+        return;
+    }
+
+
+
+    runtimeerror("Undefined BINOP");
+}
+
 static void run_stringexpr(Runtime* R, AST* ast)
 {
     pushstr(R, ast->val.str);
@@ -223,11 +263,11 @@ static void run(Runtime* R, AST* ast)
         case IFSTMT:
             run_ifstmt(R, ast);
             break;
-        case STRINGBINOP:
-            run_stringaddexpr(R, ast);
-            break;
         case STRINGEXPR:
             run_stringexpr(R, ast);
+            break;
+        case BINOP:
+            run_binop(R, ast);
             break;
         case LONGEXPR:
             run_longexpr(R, ast);
