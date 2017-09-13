@@ -91,15 +91,21 @@ static inline Variant* top(Runtime* R)
     return stackidx(R, -1);
 }
 
-static inline void pop(Runtime* R) {
-    Variant *ret = top(R);
+static inline void popn(Runtime *R, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        Variant* ret = top(R);
 
-    if (ret->type == STRING) {
-        free(ret->u.str);
+        if (ret->type == STRING) {
+            free(ret->u.str);
+        }
+
+        R->stacksize--;
+        assert(R->stacksize >= 0);
     }
+}
 
-    R->stacksize--;
-    assert(R->stacksize >= 0);
+static inline void pop(Runtime* R) {
+    popn(R, 1);
 }
 
 static inline void pushstr(Runtime* R, char* str)
@@ -185,7 +191,7 @@ static void run_echostmt(Runtime* R, AST* ast)
     printf("%s", str);
     free(str);
 
-    pop(R);
+    pop(R);;
 }
 
 static void run_ifstmt(Runtime* R, AST* ast)
@@ -193,7 +199,7 @@ static void run_ifstmt(Runtime* R, AST* ast)
     assert(ast->left);
     run(R, ast->left);
     long boolean = tolong(R, -1);
-    pop(R);
+    pop(R);;
     if (boolean) {
         run(R, ast->right);
     } else if (ast->extra) {
@@ -206,10 +212,10 @@ static void run_stringaddexpr(Runtime* R, AST* ast)
     assert(ast->left && ast->right);
     run(R, ast->left);
     char* lhs = tostring(R, -1);
-    pop(R);
+    pop(R);;
     run(R, ast->right);
     char* rhs = tostring(R, -1);
-    pop(R);
+    pop(R);;
 
     char* ret = calloc((strlen(lhs) + strlen(rhs) + 1), sizeof(char));
     strcat(ret, lhs);
@@ -257,10 +263,10 @@ static void run_binop(Runtime* R, AST* ast)
         ast->val.lint == '/' || ast->val.lint == TK_AND || ast->val.lint == TK_OR) {
         run(R, ast->left);
         long lhs = tolong(R, -1);
-        pop(R);
+        pop(R);;
         run(R, ast->right);
         long rhs = tolong(R, -1);
-        pop(R);
+        pop(R);;
         long result;
         switch (ast->val.lint) {
             case '+':
@@ -292,7 +298,9 @@ static void run_binop(Runtime* R, AST* ast)
         run(R, ast->right);
         Variant* rhs = top(R);
 
-        pushbool(R, compare_equal(lhs, rhs));
+        bool result = compare_equal(lhs, rhs);
+        popn(R, 2);
+        pushbool(R, result);
         return;
     }
 
