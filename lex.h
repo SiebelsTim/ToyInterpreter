@@ -52,4 +52,24 @@ int get_token(State*);
 char* get_token_name(int);
 void print_tokenstream(State*);
 
+static inline void state_set_string(State* S, char* str)
+{
+    if (S->val == MALLOCSTR) {
+        free(S->u.string);
+    }
+
+    S->val = MALLOCSTR;
+    S->u.string = str;
+}
+
+static inline void state_set_long(State* S, long n)
+{
+    if (S->val == MALLOCSTR) {
+        free(S->u.string);
+    }
+
+    S->val = LONGVAL;
+    S->u.lint = n;
+}
+
 #endif //PHPINTERP_LEX_H

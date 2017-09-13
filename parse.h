@@ -2,6 +2,7 @@
 #define PHPINTERP_PARSE_H
 
 #include <stdio.h>
+#include "lex.h"
 
 typedef enum ASTTYPE {
     BLOCKSTMT,
@@ -31,5 +32,17 @@ AST* parse(FILE*);
 void print_ast(AST*, int level);
 
 void destroy_ast(AST*);
+
+static inline char* overtake_str(State* S)
+{
+    assert(S->val == MALLOCSTR || S->val == STATICSTR);
+
+    char* ret = S->u.string;
+
+    S->val = NONE;
+    S->u.string = NULL;
+
+    return ret;
+}
 
 #endif //PHPINTERP_PARSE_H

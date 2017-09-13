@@ -113,7 +113,7 @@ static AST* parse_primary(State* S)
     AST* ret;
     if (S->token == TK_STRING) {
         ret = EXP0(STRINGEXPR);
-        ret->val.str = strdup(S->u.string);
+        ret->val.str = overtake_str(S);
         expect(S, TK_STRING);
         return ret;
     }
@@ -138,7 +138,7 @@ static AST* parse_primary(State* S)
 
     if (accept(S, TK_VAR)) {
         ret = EXP0(VAREXPR);
-        ret->val.str = strdup(S->u.string);
+        ret->val.str = overtake_str(S);
         return ret;
     }
 
@@ -222,7 +222,7 @@ static AST* parse_ifstmt(State* S)
 static AST* parse_assignstmt(State* S)
 {
     assert(S->token == TK_VAR);
-    char* name = strdup(S->u.string);
+    char* name = overtake_str(S);
     get_next_token(S); // Skip TK_VAR
 
     expect(S, '=');

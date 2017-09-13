@@ -146,12 +146,7 @@ static TOKEN lex_var(State* S)
     assert(is_var_start(S->lexchar));
     get_next_char(S); // Skip $
     char* str = fetch_str(S, is_str);
-
-    if (S->val == MALLOCSTR) {
-        free(S->u.string);
-    }
-    S->val = MALLOCSTR;
-    S->u.string = str;
+    state_set_string(S, str);
 
     return TK_VAR;
 }
@@ -203,11 +198,7 @@ static TOKEN lex_str(State* S)
         return syntax_error(S, errormsg);
     }
 
-    if (S->val == MALLOCSTR) {
-        free(S->u.string);
-    }
-    S->u.string = str;
-    S->val = MALLOCSTR;
+    state_set_string(S, str);
 
     get_next_char(S); // Skip "
 
@@ -219,12 +210,7 @@ int lex_num(State* S)
     char* numstr = fetch_str(S, isdigit);
     long n = strtol(numstr, NULL, 10);
     free(numstr);
-
-    if (S->val == MALLOCSTR) {
-        free(S->u.string);
-    }
-    S->val = LONGVAL;
-    S->u.lint = n;
+    state_set_long(S, n);
 
     return TK_LONG;
 }
