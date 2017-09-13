@@ -260,8 +260,32 @@ int get_token(State* S)
         return lex_num(S);
     }
 
-    get_next_char(S); // Return ascii value
-    return c;
+    switch (c) {
+        case '&':
+            if ('&' == (c = get_next_char(S))) {
+                get_next_char(S);
+                return TK_AND;
+            } else {
+                return '&';
+            }
+        case '|':
+            if ('|' == (c = get_next_char(S))) {
+                get_next_char(S);
+                return TK_OR;
+            } else {
+                return '|';
+            }
+        case '=':
+            if ('=' == (c = get_next_char(S))) {
+                get_next_char(S);
+                return TK_EQ;
+            } else {
+                return '=';
+            }
+        default:
+            get_next_char(S);
+            return c;
+    }
 }
 
 State* new_state(FILE* file)
@@ -319,7 +343,7 @@ static char* tokennames[] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, // Ends with 255
 
     "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "IF", "ELSE",
-    "TRUE", "FALSE", "VAR", "HTML", "END"
+    "TRUE", "FALSE", "VAR", "AND", "OR", "EQ" "HTML", "END"
 };
 
 char* get_token_name(int tok)

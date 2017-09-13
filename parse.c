@@ -177,6 +177,18 @@ static AST* parse_expr(State* S)
         ret = EXP2(BINOP, ret, parse_expr(S));
         ret->val.lint = '/';
     }
+    if (accept(S, TK_AND)) {
+        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret->val.lint = TK_AND;
+    }
+    if (accept(S, TK_OR)) {
+        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret->val.lint = TK_OR;
+    }
+    if (accept(S, TK_EQ)) {
+        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret->val.lint = TK_EQ;
+    }
     return ret;
 }
 

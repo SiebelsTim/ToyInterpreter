@@ -220,6 +220,33 @@ static void run_stringaddexpr(Runtime* R, AST* ast)
     free(rhs);
 }
 
+static bool compare_equal(Variant* lhs, Variant* rhs)
+{
+    bool result = false;
+    switch (lhs->type) {
+        case UNDEFINED:
+            result = rhs->type == UNDEFINED;
+            break;
+        case STRING:
+            if (rhs->type == STRING) {
+                result = strcmp(lhs->u.str, rhs->u.str) == 0;
+            } else if (rhs->type == LONG) {
+                long lint = strtol(lhs->u.str, NULL, 10);
+                result = lint == rhs->u.lint;
+            }
+            break;
+        case LONG:
+            if (rhs->type == LONG) {
+                result = lhs->u.lint == rhs->u.lint;
+            } else {
+                result = compare_equal(rhs, lhs);
+            }
+            break;
+    }
+
+    return result;
+}
+
 static void run_binop(Runtime* R, AST* ast)
 {
     if (ast->val.lint == '.') {
@@ -227,7 +254,7 @@ static void run_binop(Runtime* R, AST* ast)
     }
 
     if (ast->val.lint == '+' || ast->val.lint == '-' || ast->val.lint == '*' ||
-        ast->val.lint == '/') {
+        ast->val.lint == '/' || ast->val.lint == TK_AND || ast->val.lint == TK_OR) {
         run(R, ast->left);
         long lhs = tolong(R, -1);
         pop(R);
@@ -248,14 +275,26 @@ static void run_binop(Runtime* R, AST* ast)
             case '/':
                 result = lhs / rhs;
                 break;
+            case TK_AND:
+                result = lhs && rhs;
+                break;
+            case TK_OR:
+                result = lhs || rhs;
+                break;
             default:
                 assert(false);
         }
         pushlong(R, result);
         return;
+    } else if (ast->val.lint == TK_EQ) {
+        run(R, ast->left);
+        Variant* lhs = top(R);
+        run(R, ast->right);
+        Variant* rhs = top(R);
+
+        pushbool(R, compare_equal(lhs, rhs));
+        return;
     }
-
-
 
     runtimeerror("Undefined BINOP");
 }
