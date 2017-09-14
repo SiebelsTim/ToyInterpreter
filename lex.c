@@ -19,6 +19,11 @@ static char* resize_str(char* str, size_t previous_size, size_t new_size)
     return tmp;
 }
 
+static int is_not_open_tag(int c)
+{
+    return c != '<';
+}
+
 
 static int is_whitespace(int c)
 {
@@ -221,19 +226,26 @@ int get_token(State* S)
         return TK_END;
     }
 
-    while (S->mode != PHP) {
-        if (S->lexchar == '<' && get_next_char(S) == '?') {
-            int c1 = get_next_char(S);
-            int c2 = get_next_char(S);
-            int c3 = get_next_char(S);
-            if (c1 != 'p' || c2 != 'h' || c3 != 'p') {
-                return syntax_error(S, "Expected php after <?");
-            }
-            S->mode = PHP;
-            get_next_char(S); // Skip over last p
-            return TK_OPENTAG;
+    if (S->mode == NONPHP) {
+        char* html = fetch_str(S, is_not_open_tag);
+        if (get_next_char(S) != '?') {
+            free(html);
+            return syntax_error(S, "Expected ? after <.");
         }
-        get_next_char(S);
+        int c1 = get_next_char(S);
+        int c2 = get_next_char(S);
+        int c3 = get_next_char(S);
+        if (c1 != 'p' || c2 != 'h' || c3 != 'p') {
+            free(html);
+            return syntax_error(S, "Expected php after <?");
+        }
+        S->mode = EMITOPENTAG;
+        get_next_char(S); // Skip over last p
+        S->u.string = html;
+        return TK_HTML;
+    } else if (S->mode == EMITOPENTAG) {
+        S->mode = PHP;
+        return TK_OPENTAG;
     }
 
     int c = S->lexchar;
@@ -299,6 +311,7 @@ State* new_state(FILE* file)
     ret->lineno = 0;
     ret->mode = NONPHP;
     ret->file = file;
+    get_next_char(ret);
     return ret;
 }
 

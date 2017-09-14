@@ -253,6 +253,11 @@ AST* parse(FILE* file)
     AST* ret = EXP0(BLOCKSTMT);
     get_next_token(S); // init
     while (S->token != TK_END) {
+        if (S->token == TK_HTML) {
+            AST* html = EXP0(HTMLEXPR);
+            html->val.str = S->u.string;
+            block_append(ret, html);
+        }
         if (S->mode != PHP || S->token == TK_OPENTAG) {
             get_next_token(S);
             continue;

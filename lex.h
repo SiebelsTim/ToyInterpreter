@@ -23,7 +23,7 @@ typedef enum TOKEN {
     TK_END
 } TOKEN;
 enum MODE {
-    PHP, NONPHP
+    PHP, NONPHP, EMITOPENTAG
 };
 
 typedef enum VALTYPE {

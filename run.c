@@ -357,6 +357,11 @@ static void run(Runtime* R, AST* ast)
         case VAREXPR:
             run_varexpr(R, ast);
             break;
+        case HTMLEXPR:
+            printf("%s", ast->val.str);
+            free(ast->val.str);
+            ast->val.str = NULL;
+            break;
         default:
             runtimeerror("Unexpected AST Type");
             break;

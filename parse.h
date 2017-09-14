@@ -12,7 +12,8 @@ typedef enum ASTTYPE {
     BINOP,
     LONGEXPR,
     VAREXPR,
-    ASSIGNMENTEXPR
+    ASSIGNMENTEXPR,
+    HTMLEXPR
 } ASTTYPE;
 
 typedef struct AST {
