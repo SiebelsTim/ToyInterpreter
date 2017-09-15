@@ -20,7 +20,7 @@ typedef struct AST {
     ASTTYPE type;
     union {
         char* str;
-        long lint;
+        int64_t lint;
     } val;
     struct AST* left;
     struct AST* right;

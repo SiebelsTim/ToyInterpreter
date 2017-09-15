@@ -2,6 +2,7 @@
 #define PHPINTERP_RUN_H
 
 #include <stdio.h>
+#include <stdint.h>
 
 enum VARIANTTYPE {
     UNDEFINED = 0,
@@ -13,7 +14,7 @@ typedef struct Variant {
     enum VARIANTTYPE type;
     union {
         char* str;
-        long lint;
+        int64_t lint;
     } u;
 } Variant;
 

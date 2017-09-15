@@ -8,6 +8,7 @@
 #include "parse.h"
 #include "lex.h"
 #include "scope.h"
+#include "compile.h"
 
 Variant cpy_var(Variant var)
 {
@@ -117,7 +118,7 @@ static inline void pushstr(Runtime* R, char* str)
 }
 
 
-static inline void pushlong(Runtime* R, long n)
+static inline void pushlong(Runtime* R, int64_t n)
 {
     Variant var;
     var.type = LONG;
@@ -153,7 +154,7 @@ static char* tostring(Runtime* R, int idx)
     abort();
 }
 
-static long tolong(Runtime* R, int idx)
+static int64_t tolong(Runtime* R, int idx)
 {
     Variant* var = stackidx(R, idx);
     switch (var->type) {
@@ -173,27 +174,27 @@ static long tolong(Runtime* R, int idx)
     }
 }
 
-static void run(Runtime* R, AST* ast);
+static void run(Runtime* R, Function* fn);
 
+/*
 static void run_blockstmt(Runtime* R, AST* ast)
 {
     while (ast->next) {
         run(R, ast->next);
         ast = ast->next;
     }
-}
+}*/
 
-static void run_echostmt(Runtime* R, AST* ast)
+static void run_echo(Runtime* R)
 {
-    assert(ast->left);
-    run(R, ast->left);
     char* str = tostring(R, -1);
     printf("%s", str);
     free(str);
 
-    pop(R);;
+    pop(R);
 }
 
+/*
 static void run_ifstmt(Runtime* R, AST* ast)
 {
     assert(ast->left);
@@ -207,15 +208,13 @@ static void run_ifstmt(Runtime* R, AST* ast)
     }
 }
 
-static void run_stringaddexpr(Runtime* R, AST* ast)
+*/
+static void run_stringaddexpr(Runtime* R)
 {
-    assert(ast->left && ast->right);
-    run(R, ast->left);
-    char* lhs = tostring(R, -1);
-    pop(R);;
-    run(R, ast->right);
     char* rhs = tostring(R, -1);
-    pop(R);;
+    pop(R);
+    char* lhs = tostring(R, -1);
+    pop(R);
 
     char* ret = calloc((strlen(lhs) + strlen(rhs) + 1), sizeof(char));
     strcat(ret, lhs);
@@ -237,7 +236,9 @@ static bool compare_equal(Variant* lhs, Variant* rhs)
             if (rhs->type == STRING) {
                 result = strcmp(lhs->u.str, rhs->u.str) == 0;
             } else if (rhs->type == LONG) {
-                long lint = strtol(lhs->u.str, NULL, 10);
+                long long ll = strtoll(lhs->u.str, NULL, 10);
+                int64_t lint = (int64_t) ll;
+                assert(ll == lint);
                 result = lint == rhs->u.lint;
             }
             break;
@@ -253,22 +254,22 @@ static bool compare_equal(Variant* lhs, Variant* rhs)
     return result;
 }
 
-static void run_binop(Runtime* R, AST* ast)
+
+static void run_binop(Runtime* R, Function* fn)
 {
-    if (ast->val.lint == '.') {
-        return run_stringaddexpr(R, ast);
+    int op = *fn->ip++;
+    if (op == '.') {
+        return run_stringaddexpr(R);
     }
 
-    if (ast->val.lint == '+' || ast->val.lint == '-' || ast->val.lint == '*' ||
-        ast->val.lint == '/' || ast->val.lint == TK_AND || ast->val.lint == TK_OR) {
-        run(R, ast->left);
-        long lhs = tolong(R, -1);
-        pop(R);;
-        run(R, ast->right);
-        long rhs = tolong(R, -1);
-        pop(R);;
-        long result;
-        switch (ast->val.lint) {
+    if (op == '+' || op == '-' || op == '*' ||
+        op == '/' || op == TK_AND || op == TK_OR) {
+        int64_t lhs = tolong(R, -1);
+        pop(R);
+        int64_t rhs = tolong(R, -1);
+        pop(R);
+        int64_t result;
+        switch (op) {
             case '+':
                 result = lhs + rhs;
                 break;
@@ -292,11 +293,9 @@ static void run_binop(Runtime* R, AST* ast)
         }
         pushlong(R, result);
         return;
-    } else if (ast->val.lint == TK_EQ) {
-        run(R, ast->left);
-        Variant* lhs = top(R);
-        run(R, ast->right);
-        Variant* rhs = top(R);
+    } else if (op == TK_EQ) {
+        Variant* rhs = stackidx(R, -1);
+        Variant* lhs = stackidx(R, -2);
 
         bool result = compare_equal(lhs, rhs);
         popn(R, 2);
@@ -317,63 +316,79 @@ static void run_longexpr(Runtime* R, AST* ast)
     pushlong(R, ast->val.lint);
 }
 
-static void run_varexpr(Runtime* R, AST* ast)
-{
-    push(R, lookup(R, ast->val.str));
-}
 
-static void run_assignmentexpr(Runtime* R, AST* ast)
+static void run_assignmentexpr(Runtime* R, Function* fn)
 {
-    run(R, ast->left);
     Variant* val = top(R);
-    set_var(R, ast->val.str, *val);
+    set_var(R, fn->strs[*fn->ip++], *val);
     // result of running the expr still lies on the stack.
 }
 
-static void run(Runtime* R, AST* ast)
+static void run_function(Runtime* R, Function* fn)
 {
-    switch (ast->type) {
-        case BLOCKSTMT:
-            run_blockstmt(R, ast);
-            break;
-        case ECHOSTMT:
-            run_echostmt(R, ast);
-            break;
-        case IFSTMT:
-            run_ifstmt(R, ast);
-            break;
-        case STRINGEXPR:
-            run_stringexpr(R, ast);
-            break;
-        case BINOP:
-            run_binop(R, ast);
-            break;
-        case LONGEXPR:
-            run_longexpr(R, ast);
-            break;
-        case ASSIGNMENTEXPR:
-            run_assignmentexpr(R, ast);
-            break;
-        case VAREXPR:
-            run_varexpr(R, ast);
-            break;
-        case HTMLEXPR:
-            printf("%s", ast->val.str);
-            free(ast->val.str);
-            ast->val.str = NULL;
-            break;
-        default:
-            runtimeerror("Unexpected AST Type");
-            break;
+    while ((size_t)(fn->ip - fn->code) < fn->codesize) {
+        Operator op = *fn->ip++;
+        int64_t lint;
+        switch (op) {
+            case OP_NOP:
+                break;
+            case OP_ECHO:
+                run_echo(R);
+                break;
+            case OP_STR:
+                pushstr(R, fn->strs[*fn->ip++]);
+                break;
+            case OP_LONG:
+                lint = (*fn->ip++) << 4;
+                lint |= (*fn->ip++);
+                pushlong(R, lint);
+                break;
+            case OP_TRUE:
+                pushbool(R, 1);
+                break;
+            case OP_FALSE:
+                pushbool(R, 0);
+                break;
+            case OP_BIN:
+                run_binop(R, fn);
+                break;
+            case OP_LOOKUP:
+                push(R, lookup(R, fn->strs[*fn->ip++]));
+                break;
+            case OP_ASSIGN:
+                run_assignmentexpr(R, fn);
+                break;
+            case OP_JMP:
+                fn->ip = fn->code + *fn->ip;
+                break;
+            case OP_JMPZ:
+                if (tolong(R, -1) == 0) {
+                    fn->ip = fn->code + *fn->ip;
+                } else {
+                    fn->ip++; // jump over jmpaddr
+                }
+                break;
+            case OP_INVALID:
+                runtimeerror("OP_INVALID");
+                break;
+            default:
+                runtimeerror("Unexpected OP");
+        }
     }
 }
 
 void run_file(FILE* file) {
     AST* ast = parse(file);
 
+    Function* fn = create_function();
+    compile(fn, ast);
+
     Runtime* R = create_runtime();
-    run(R, ast);
+    //print_code(fn);
+    run_function(R, fn);
     destroy_runtime(R);
+
+    free_function(fn);
 
     destroy_ast(ast);
 }

@@ -356,7 +356,7 @@ static char* tokennames[] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, // Ends with 255
 
     "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "IF", "ELSE",
-    "TRUE", "FALSE", "VAR", "AND", "OR", "EQ" "HTML", "END"
+    "TRUE", "FALSE", "VAR", "AND", "OR", "EQ", "HTML", "END"
 };
 
 char* get_token_name(int tok)
