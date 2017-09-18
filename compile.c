@@ -81,6 +81,16 @@ static inline size_t emit(Function* fn, Operator op)
     return fn->codesize++;
 }
 
+static inline size_t emitraw(Function* fn, long op)
+{
+    if (op != (Operator) op) {
+        compiletimeerror("Error encoding operator: %d", op);
+        return 0;
+    }
+
+    return emit(fn, (Operator) op);
+}
+
 static inline size_t emit_replace(Function* fn, size_t position, Operator op)
 {
     assert(position < fn->codesize);
@@ -102,10 +112,7 @@ static void addstring(Function* fn, char* str)
 {
     try_strs_resize(fn);
     fn->strs[fn->strlen] = str;
-    if (fn->strlen != (Operator) fn->strlen) {
-        compiletimeerror("Overflow into OP encoding");
-    }
-    emit(fn, (Operator) fn->strlen++);
+    emitraw(fn, fn->strlen++);
 }
 
 static void compile_blockstmt(Function* fn, AST* ast)
@@ -167,7 +174,7 @@ static void compile_binop(Function* fn, AST* ast)
     compile(fn, ast->node1);
     compile(fn, ast->node2);
     emit(fn, OP_BIN);
-    emit(fn, (Operator) ast->val.lint);
+    emitraw(fn, ast->val.lint);
 }
 
 static void compile_whilestmt(Function* fn, AST* ast)
@@ -181,7 +188,7 @@ static void compile_whilestmt(Function* fn, AST* ast)
     compile(fn, ast->node2);
 
     emit(fn, OP_JMP); // Jump back to while start
-    emit(fn, (Operator) while_start);
+    emitraw(fn, while_start);
 
     emit_replace(fn, placeholder, (Operator) emit(fn, OP_NOP));
 }
@@ -199,7 +206,7 @@ static void compile_forstmt(Function* fn, AST* ast) {
     compile(fn, ast->node3); // Post expression
 
     emit(fn, OP_JMP); // Jump back to for start
-    emit(fn, (Operator) for_start);
+    emitraw(fn, for_start);
 
     emit_replace(fn, placeholder, (Operator) emit(fn, OP_NOP));
 }
