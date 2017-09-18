@@ -6,3 +6,5 @@ PHPInterp
 PHPInterp.cbp
 
 .idea/
+
+tests/*.out

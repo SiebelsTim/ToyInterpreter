@@ -1,0 +1,14 @@
+#!/usr/bin/php
+<?php
+
+$dirit = new RecursiveDirectoryIterator(__DIR__);
+$it = new RecursiveIteratorIterator($dirit);
+
+foreach($it as $file) {
+    if (!preg_match('/.php$/', $file->getFilename()))
+        continue;
+
+    echo "FILE: ", $file->getFilename(), PHP_EOL;
+    $expect = substr($file->getRealPath(), 0, -4) . '.expect';
+    system('php ' . escapeshellarg($file->getRealPath()) . ' > ' . escapeshellarg($expect));
+}

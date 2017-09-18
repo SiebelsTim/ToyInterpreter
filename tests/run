@@ -5,11 +5,28 @@ $dirit = new RecursiveDirectoryIterator(__DIR__);
 $it = new RecursiveIteratorIterator($dirit);
 
 foreach($it as $file) {
-    if (in_array($file->getFilename(), ['run', '.', '..'])) 
-        continue;
+      if (!preg_match('/.php$/', $file->getFilename()))
+          continue;
 
     echo "FILE: ", $file->getFilename(), PHP_EOL;
     echo "=================================", PHP_EOL;
-    system(__DIR__ . '/../PHPInterp ' . escapeshellarg($file->getRealPath()));
+    $out = substr($file->getRealPath(), 0, -4) . '.out';
+    $expect = substr($file->getRealPath(), 0, -4) . '.expect';
+    system(__DIR__ . '/../PHPInterp ' . escapeshellarg($file->getRealPath()) . ' > ' . escapeshellarg($out));
+    $ret = null;
+    system('diff -u ' . escapeshellarg($out) . ' ' . escapeshellarg($expect), $ret);
+    if ($ret !== 0) {
+      echo error("ERROR");
+    } else {
+      echo success("SUCCESS");
+    }
     echo PHP_EOL;
+}
+
+function error($str) {
+  return "\e[1m\e[31m$str\e[0m";
+}
+
+function success($str) {
+  return "\e[32m\e[1m$str\e[0m";
 }
