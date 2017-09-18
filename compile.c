@@ -121,16 +121,17 @@ static void compile_blockstmt(Function* fn, AST* ast)
 static void compile_echostmt(Function* fn, AST* ast)
 {
     assert(ast->type == ECHOSTMT);
-    assert(ast->left);
-    compile(fn, ast->left);
+    assert(ast->node1);
+    compile(fn, ast->node1);
     emit(fn, OP_ECHO);
 }
 
 static void compile_assignmentexpr(Function* fn, AST* ast)
 {
     assert(ast->type == ASSIGNMENTEXPR);
-    assert(ast->left);
-    compile(fn, ast->left);
+    assert(ast->node1);
+    assert(ast->val.str);
+    compile(fn, ast->node1);
     emit(fn, OP_ASSIGN);
     addstring(fn, ast->val.str);
     ast->val.str = NULL;
@@ -139,22 +140,22 @@ static void compile_assignmentexpr(Function* fn, AST* ast)
 static void compile_ifstmt(Function* fn, AST* ast)
 {
     assert(ast->type == IFSTMT);
-    assert(ast->left && ast->right);
-    compile(fn, ast->left);
+    assert(ast->node1 && ast->node2);
+    compile(fn, ast->node1);
     emit(fn, OP_JMPZ); // Jump over code if false
     size_t placeholder = emit(fn, OP_INVALID); // Placeholder
-    compile(fn, ast->right);
+    compile(fn, ast->node2);
     emit_replace(fn, placeholder, (Operator) emit(fn, OP_NOP)); // place to jump over if
     assert((Operator)fn->codesize == fn->codesize);
 
-    if (ast->extra) {
+    if (ast->node3) {
         emit(fn, OP_JMP);
         size_t else_placeholder = emit(fn, OP_INVALID); // placeholder
         // When we get here, we already assigned a jmp to here for the else branch
         // However, we need to increase it by one two jmp over this jmp
         emit_replace(fn, placeholder, (Operator) fn->codesize);
 
-        compile(fn, ast->extra);
+        compile(fn, ast->node3);
         emit_replace(fn, else_placeholder, (Operator) emit(fn, OP_NOP));
     }
 }
@@ -162,24 +163,43 @@ static void compile_ifstmt(Function* fn, AST* ast)
 static void compile_binop(Function* fn, AST* ast)
 {
     assert(ast->type == BINOP);
-    assert(ast->left && ast->right);
-    compile(fn, ast->left);
-    compile(fn, ast->right);
+    assert(ast->node1 && ast->node2);
+    compile(fn, ast->node1);
+    compile(fn, ast->node2);
     emit(fn, OP_BIN);
     emit(fn, (Operator) ast->val.lint);
 }
 
-static void compile_whilestmt(Function* fn, AST* ast) {
+static void compile_whilestmt(Function* fn, AST* ast)
+{
     assert(ast->type == WHILESTMT);
-    assert(ast->left && ast->right);
+    assert(ast->node1 && ast->node2);
     size_t while_start = fn->codesize;
-    compile(fn, ast->left);
+    compile(fn, ast->node1);
     emit(fn, OP_JMPZ); // Jump over body if zero
-    size_t placeholder = emit(fn, OP_INVALID); // Placeholder}
-    compile(fn, ast->right);
+    size_t placeholder = emit(fn, OP_INVALID); // Placeholder
+    compile(fn, ast->node2);
 
     emit(fn, OP_JMP); // Jump back to while start
     emit(fn, (Operator) while_start);
+
+    emit_replace(fn, placeholder, (Operator) emit(fn, OP_NOP));
+}
+
+
+static void compile_forstmt(Function* fn, AST* ast) {
+    assert(ast->type == FORSTMT);
+    assert(ast->node1 && ast->node2 && ast->node3 && ast->node4);
+    compile(fn, ast->node1); // Init
+    size_t for_start = fn->codesize;
+    compile(fn, ast->node2); // Condition
+    emit(fn, OP_JMPZ); // Jump over body if zero
+    size_t placeholder = emit(fn, OP_INVALID); // Placeholder
+    compile(fn, ast->node4); // Body
+    compile(fn, ast->node3); // Post expression
+
+    emit(fn, OP_JMP); // Jump back to for start
+    emit(fn, (Operator) for_start);
 
     emit_replace(fn, placeholder, (Operator) emit(fn, OP_NOP));
 }
@@ -198,6 +218,7 @@ Function* compile(Function* fn, AST* ast)
             break;
         case STRINGEXPR:
             emit(fn, OP_STR);
+            assert(ast->val.str);
             addstring(fn, ast->val.str);
             ast->val.str = NULL;
             break;
@@ -209,6 +230,7 @@ Function* compile(Function* fn, AST* ast)
             break;
         case VAREXPR:
             emit(fn, OP_LOOKUP);
+            assert(ast->val.str);
             addstring(fn, ast->val.str);
             ast->val.str = NULL;
             break;
@@ -217,12 +239,16 @@ Function* compile(Function* fn, AST* ast)
             break;
         case HTMLEXPR:
             emit(fn, OP_STR);
+            assert(ast->val.str);
             addstring(fn, ast->val.str);
             ast->val.str = NULL;
             emit(fn, OP_ECHO);
             break;
         case WHILESTMT:
             compile_whilestmt(fn, ast);
+            break;
+        case FORSTMT:
+            compile_forstmt(fn, ast);
             break;
         default:
             compiletimeerror("Unexpected Type '%s'", get_ast_typename(ast->type));

@@ -6,10 +6,11 @@
 #include "parse.h"
 #include "lex.h"
 
-#define EXP0(type) new_ast(type, NULL, NULL, NULL)
-#define EXP1(type, lhs) new_ast(type, lhs, NULL, NULL)
-#define EXP2(type, lhs, rhs) new_ast(type, lhs, rhs, NULL)
-#define EXP3(type, lhs, rhs, extra) new_ast(type, lhs, rhs, extra);
+#define EXP0(type) new_ast(type, NULL, NULL, NULL, NULL)
+#define EXP1(type, one) new_ast(type, one, NULL, NULL, NULL)
+#define EXP2(type, one, two) new_ast(type, one, two, NULL, NULL)
+#define EXP3(type, one, two, three) new_ast(type, one, two, three, NULL)
+#define EXP4(type, one, two, three, four) new_ast(type, one, two, three, four)
 
 static int get_next_token(State* S)
 {
@@ -57,14 +58,15 @@ static inline bool expect(State* S, int tok)
 
 
 
-static AST* new_ast(ASTTYPE type, AST* left, AST* right, AST* extra)
+static AST* new_ast(ASTTYPE type, AST* one, AST* two, AST* three, AST* four)
 {
     AST* ret = malloc(sizeof(AST));
 
     ret->type = type;
-    ret->left = left;
-    ret->right = right;
-    ret->extra = extra;
+    ret->node1 = one;
+    ret->node2 = two;
+    ret->node3 = three;
+    ret->node4 = four;
     ret->next = NULL;
     ret->val.str = NULL;
 
@@ -87,8 +89,8 @@ static AST* parse_expr(State* S);
 static AST* parse_echostmt(State* S);
 static AST* parse_ifstmt(State* S);
 static AST* parse_whilestmt(State* S);
+static AST* parse_forstmt(State* S);
 static AST* parse_blockstmt(State* S);
-static AST* parse_assignstmt(State* S);
 
 static AST* parse_stmt(State* S)
 {
@@ -101,15 +103,16 @@ static AST* parse_stmt(State* S)
     if (accept(S, TK_WHILE)) {
         return parse_whilestmt(S);
     }
+    if (accept(S, TK_FOR)) {
+        return parse_forstmt(S);
+    }
     if (accept(S, '{')) {
         return parse_blockstmt(S);
     }
-    if (S->token == TK_VAR) {
-        return parse_assignstmt(S);
-    }
 
-    parseerror(S, "Unexpected token '%s', (0x%x).", get_token_name(S->token), S->token);
-    return NULL;
+    AST* ret = parse_expr(S);
+    expect(S, ';');
+    return ret;
 }
 
 static AST* parse_primary(State* S)
@@ -140,9 +143,14 @@ static AST* parse_primary(State* S)
         return ret;
     }
 
-    if (accept(S, TK_VAR)) {
+    if (S->token == TK_VAR) {
         ret = EXP0(VAREXPR);
         ret->val.str = overtake_str(S);
+        expect(S, TK_VAR); // Skip
+        if (accept(S, '=')) {
+            ret->type = ASSIGNMENTEXPR;
+            ret->node1 = parse_expr(S);
+        }
         return ret;
     }
 
@@ -201,6 +209,7 @@ static AST* parse_expr(State* S)
         ret = EXP2(BINOP, parse_expr(S), ret);
         ret->val.lint = '<';
     }
+
     return ret;
 }
 
@@ -253,20 +262,18 @@ static AST* parse_whilestmt(State* S)
     return EXP2(WHILESTMT, expr, body);
 }
 
-static AST* parse_assignstmt(State* S)
+static AST* parse_forstmt(State* S)
 {
-    assert(S->token == TK_VAR);
-    char* name = overtake_str(S);
-    get_next_token(S); // Skip TK_VAR
-
-    expect(S, '=');
-    AST* val = parse_expr(S);
-    AST* ret = EXP1(ASSIGNMENTEXPR, val);
-    ret->val.str = name;
-
+    expect(S, '(');
+    AST* init = parse_expr(S);
     expect(S, ';');
+    AST* condition = parse_expr(S);
+    expect(S, ';');
+    AST* post = parse_expr(S);
+    expect(S, ')');
 
-    return ret;
+    AST* body = parse_stmt(S);
+    return EXP4(FORSTMT, init, condition, post, body);
 }
 
 AST* parse(FILE* file)
@@ -301,15 +308,19 @@ void destroy_ast(AST* ast)
         destroy_ast(ast->next);
     }
 
-    if (ast->left) {
-        destroy_ast(ast->left);
+    if (ast->node1) {
+        destroy_ast(ast->node1);
     }
-    if (ast->right) {
-        destroy_ast(ast->right);
+    if (ast->node2) {
+        destroy_ast(ast->node2);
     }
 
-    if (ast->extra) {
-        destroy_ast(ast->extra);
+    if (ast->node3) {
+        destroy_ast(ast->node3);
+    }
+
+    if (ast->node4) {
+        destroy_ast(ast->node4);
     }
 
     free(ast);
@@ -346,18 +357,22 @@ char* get_ast_typename(ASTTYPE type)
 void print_ast(AST* ast, int level)
 {
     for (int i = 0; i < level; ++i) {
-        putchar(' ');
+        putchar('|');
         putchar(' ');
     }
-    printf("%s: ", get_ast_typename(ast->type));
+    printf("%p %s: ", ast, get_ast_typename(ast->type));
 
     switch (ast->type) {
         case STRINGEXPR:
         case VAREXPR:
+        case ASSIGNMENTEXPR:
             puts(ast->val.str);
             break;
         case LONGEXPR:
             printf("%ld\n", ast->val.lint);
+            break;
+        case BINOP:
+            printf("%c\n", (char) ast->val.lint);
             break;
         default:
             puts("");
@@ -372,15 +387,15 @@ void print_ast(AST* ast, int level)
         return;
     }
 
-    if (ast->left) {
-        print_ast(ast->left, level+1);
+    if (ast->node1) {
+        print_ast(ast->node1, level+1);
     }
 
-    if (ast->right) {
-        print_ast(ast->right, level+1);
+    if (ast->node2) {
+        print_ast(ast->node2, level+1);
     }
 
-    if (ast->extra) {
-        print_ast(ast->extra, level+1);
+    if (ast->node3) {
+        print_ast(ast->node3, level+1);
     }
 }

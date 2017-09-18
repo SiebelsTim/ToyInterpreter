@@ -9,6 +9,7 @@ typedef enum ASTTYPE {
     ECHOSTMT,
     IFSTMT,
     WHILESTMT,
+    FORSTMT,
     STRINGEXPR,
     BINOP,
     LONGEXPR,
@@ -23,9 +24,10 @@ typedef struct AST {
         char* str;
         int64_t lint;
     } val;
-    struct AST* left;
-    struct AST* right;
-    struct AST* extra;
+    struct AST* node1;
+    struct AST* node2;
+    struct AST* node3;
+    struct AST* node4;
     struct AST* next;
 } AST;
 

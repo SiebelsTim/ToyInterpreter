@@ -21,6 +21,7 @@ typedef enum TOKEN {
     TK_EQ,
     TK_HTML,
     TK_WHILE,
+    TK_FOR,
     TK_END
 } TOKEN;
 enum MODE {
@@ -44,7 +45,7 @@ typedef struct State {
     VALTYPE val;
     union {
         char* string;
-        long lint;
+        int64_t lint;
     } u;
     char* error;
 } State;

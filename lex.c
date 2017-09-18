@@ -137,6 +137,8 @@ static int lex_ident(State* S)
         ret = TK_FALSE;
     } else if (strcmp(str, "while") == 0) {
         ret = TK_WHILE;
+    } else if (strcmp(str, "for") == 0) {
+        ret = TK_FOR;
     } else {
         char* msg = malloc((strlen("Unknown identifier '%s'") + strlen(str)) * sizeof(char));
         sprintf(msg, "Unknown identifier '%s'", str);
@@ -310,7 +312,7 @@ State* new_state(FILE* file)
         return NULL;
     }
     ret->val = NONE;
-    ret->lineno = 0;
+    ret->lineno = 1;
     ret->mode = NONPHP;
     ret->file = file;
     get_next_char(ret);
@@ -358,7 +360,7 @@ static char* tokennames[] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, // Ends with 255
 
     "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "IF", "ELSE",
-    "TRUE", "FALSE", "VAR", "AND", "OR", "EQ", "HTML", "WHILE", "END"
+    "TRUE", "FALSE", "VAR", "AND", "OR", "EQ", "HTML", "WHILE", "FOR", "END"
 };
 
 char* get_token_name(int tok)
