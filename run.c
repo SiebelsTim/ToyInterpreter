@@ -8,6 +8,7 @@
 #include "parse.h"
 #include "scope.h"
 #include "compile.h"
+#include "array-util.h"
 
 Variant cpy_var(Variant var)
 {
@@ -69,17 +70,8 @@ static void destroy_runtime(Runtime* R)
 
 static inline void try_stack_resize(Runtime* R)
 {
-    if (R->stackcapacity < R->stacksize+1) {
-        R->stackcapacity *= 2;
-        Variant* tmp = realloc(R->stack, sizeof(*R->stack) * R->stackcapacity);
-        if (!tmp) {
-            runtimeerror("Out of memory");
-            return;;
-        }
-
-        memset(&tmp[R->stacksize], 0, R->stackcapacity - R->stacksize);
-        R->stack = tmp;
-    }
+    try_resize(&R->stackcapacity, R->stacksize, (void*)&R->stack,
+               sizeof(*R->stack), runtimeerror);
 }
 
 static void push(Runtime* R, Variant val)

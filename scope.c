@@ -1,6 +1,7 @@
 #include <memory.h>
 #include <stdlib.h>
 #include "scope.h"
+#include "array-util.h"
 
 static const Variant undefined = {.type = UNDEFINED};
 
@@ -36,19 +37,10 @@ Variant lookup(Runtime *R, char *str)
     return undefined;
 }
 
-static void try_resize(Scope* scope)
+static void try_vars_resize(Scope* scope)
 {
-    if (scope->capacity < scope->size+1) {
-        scope->capacity *= 2;
-        Variable* tmp = realloc(scope->vars, sizeof(*scope->vars) * scope->capacity);
-        if (!tmp) {
-            runtimeerror("Out of memory");
-            return;
-        }
-
-        memset(&tmp[scope->size], 0, scope->capacity - scope->size);
-        scope->vars = tmp;
-    }
+    try_resize(&scope->capacity, scope->size, (void*)&scope->vars,
+               sizeof(*scope->vars), runtimeerror);
 }
 
 Variable* set_var(Runtime* R, char* str, Variant var)
@@ -63,7 +55,7 @@ Variable* set_var(Runtime* R, char* str, Variant var)
         }
     }
 
-    try_resize(R->scope);
+    try_vars_resize(R->scope);
     const size_t idx = R->scope->size++;
     vars[idx].name = strdup(str);
     vars[idx].value = cpy_var(var);
