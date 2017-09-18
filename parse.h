@@ -8,6 +8,7 @@ typedef enum ASTTYPE {
     BLOCKSTMT,
     ECHOSTMT,
     IFSTMT,
+    WHILESTMT,
     STRINGEXPR,
     BINOP,
     LONGEXPR,
@@ -30,6 +31,7 @@ typedef struct AST {
 
 AST* parse(FILE*);
 
+char* get_ast_typename(ASTTYPE ast);
 void print_ast(AST*, int level);
 
 void destroy_ast(AST*);

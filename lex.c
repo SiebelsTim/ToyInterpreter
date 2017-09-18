@@ -135,9 +135,11 @@ static int lex_ident(State* S)
         ret = TK_TRUE;
     } else if (strcmp(str, "false") == 0) {
         ret = TK_FALSE;
+    } else if (strcmp(str, "while") == 0) {
+        ret = TK_WHILE;
     } else {
-        char* msg = malloc((strlen("Unknown identifier %s") + strlen(str)) * sizeof(char));
-        sprintf(msg, "Unknown identifier %s", str);
+        char* msg = malloc((strlen("Unknown identifier '%s'") + strlen(str)) * sizeof(char));
+        sprintf(msg, "Unknown identifier '%s'", str);
         ret = syntax_error(S, msg);
         free(msg);
     }
@@ -356,7 +358,7 @@ static char* tokennames[] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, // Ends with 255
 
     "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "IF", "ELSE",
-    "TRUE", "FALSE", "VAR", "AND", "OR", "EQ", "HTML", "END"
+    "TRUE", "FALSE", "VAR", "AND", "OR", "EQ", "HTML", "WHILE", "END"
 };
 
 char* get_token_name(int tok)

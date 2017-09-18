@@ -32,9 +32,19 @@ void free_function(Function* fn)
     free(fn);
 }
 
-noreturn void compiletimeerror(char* fmt)
+noreturn void compiletimeerror(char* fmt, ...)
 {
-    puts(fmt);
+    va_list ap;
+    char msgbuf[256];
+    va_start(ap, fmt);
+    vsnprintf(msgbuf, arrcount(msgbuf), fmt, ap);
+    va_end(ap);
+
+    char buf[256];
+    snprintf(buf, arrcount(buf), "Parse error: %s.", msgbuf);
+
+    puts(buf);
+
     abort();
 }
 
@@ -159,6 +169,21 @@ static void compile_binop(Function* fn, AST* ast)
     emit(fn, (Operator) ast->val.lint);
 }
 
+static void compile_whilestmt(Function* fn, AST* ast) {
+    assert(ast->type == WHILESTMT);
+    assert(ast->left && ast->right);
+    size_t while_start = fn->codesize;
+    compile(fn, ast->left);
+    emit(fn, OP_JMPZ); // Jump over body if zero
+    size_t placeholder = emit(fn, OP_INVALID); // Placeholder}
+    compile(fn, ast->right);
+
+    emit(fn, OP_JMP); // Jump back to while start
+    emit(fn, (Operator) while_start);
+
+    emit_replace(fn, placeholder, (Operator) emit(fn, OP_NOP));
+}
+
 Function* compile(Function* fn, AST* ast)
 {
     switch (ast->type) {
@@ -196,6 +221,11 @@ Function* compile(Function* fn, AST* ast)
             ast->val.str = NULL;
             emit(fn, OP_ECHO);
             break;
+        case WHILESTMT:
+            compile_whilestmt(fn, ast);
+            break;
+        default:
+            compiletimeerror("Unexpected Type '%s'", get_ast_typename(ast->type));
     }
 
     return fn;

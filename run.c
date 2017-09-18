@@ -2,11 +2,10 @@
 #include <stdnoreturn.h>
 #include <memory.h>
 #include <assert.h>
-#include <tgmath.h>
 #include <stdbool.h>
+#include <lzma.h>
 #include "run.h"
 #include "parse.h"
-#include "lex.h"
 #include "scope.h"
 #include "compile.h"
 
@@ -73,7 +72,10 @@ static inline void try_stack_resize(Runtime* R)
     if (R->stackcapacity < R->stacksize+1) {
         R->stackcapacity *= 2;
         Variant* tmp = realloc(R->stack, sizeof(*R->stack) * R->stackcapacity);
-        if (!tmp) runtimeerror("Out of memory");
+        if (!tmp) {
+            runtimeerror("Out of memory");
+            return;;
+        }
 
         memset(&tmp[R->stacksize], 0, R->stackcapacity - R->stacksize);
         R->stack = tmp;
@@ -144,7 +146,7 @@ static char* tostring(Runtime* R, int idx)
             return strdup(var->u.str);
         case LONG:
             buf = malloc(sizeof(char) * 20); // Let this be "enough"
-            snprintf(buf, sizeof(char) * 20, "%ld", var->u.lint);
+            snprintf(buf, sizeof(char) * 20, "%" PRId64, var->u.lint);
             return buf;
         case UNDEFINED:
             return strdup("<UNDEFINED>");
@@ -174,16 +176,6 @@ static int64_t tolong(Runtime* R, int idx)
     }
 }
 
-static void run(Runtime* R, Function* fn);
-
-/*
-static void run_blockstmt(Runtime* R, AST* ast)
-{
-    while (ast->next) {
-        run(R, ast->next);
-        ast = ast->next;
-    }
-}*/
 
 static void run_echo(Runtime* R)
 {
@@ -194,21 +186,6 @@ static void run_echo(Runtime* R)
     pop(R);
 }
 
-/*
-static void run_ifstmt(Runtime* R, AST* ast)
-{
-    assert(ast->left);
-    run(R, ast->left);
-    long boolean = tolong(R, -1);
-    pop(R);;
-    if (boolean) {
-        run(R, ast->right);
-    } else if (ast->extra) {
-        run(R, ast->extra);
-    }
-}
-
-*/
 static void run_stringaddexpr(Runtime* R)
 {
     char* rhs = tostring(R, -1);
@@ -263,10 +240,10 @@ static void run_binop(Runtime* R, Function* fn)
     }
 
     if (op == '+' || op == '-' || op == '*' ||
-        op == '/' || op == TK_AND || op == TK_OR) {
-        int64_t lhs = tolong(R, -1);
-        pop(R);
+        op == '/' || op == '<' || op == TK_AND || op == TK_OR) {
         int64_t rhs = tolong(R, -1);
+        pop(R);
+        int64_t lhs = tolong(R, -1);
         pop(R);
         int64_t result;
         switch (op) {
@@ -281,6 +258,9 @@ static void run_binop(Runtime* R, Function* fn)
                 break;
             case '/':
                 result = lhs / rhs;
+                break;
+            case '<':
+                result = lhs < rhs;
                 break;
             case TK_AND:
                 result = lhs && rhs;
@@ -304,16 +284,6 @@ static void run_binop(Runtime* R, Function* fn)
     }
 
     runtimeerror("Undefined BINOP");
-}
-
-static void run_stringexpr(Runtime* R, AST* ast)
-{
-    pushstr(R, ast->val.str);
-}
-
-static void run_longexpr(Runtime* R, AST* ast)
-{
-    pushlong(R, ast->val.lint);
 }
 
 

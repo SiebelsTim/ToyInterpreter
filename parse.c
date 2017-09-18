@@ -86,6 +86,7 @@ static AST* block_append(AST* block, AST* ast)
 static AST* parse_expr(State* S);
 static AST* parse_echostmt(State* S);
 static AST* parse_ifstmt(State* S);
+static AST* parse_whilestmt(State* S);
 static AST* parse_blockstmt(State* S);
 static AST* parse_assignstmt(State* S);
 
@@ -96,6 +97,9 @@ static AST* parse_stmt(State* S)
     }
     if (accept(S, TK_IF)) {
         return parse_ifstmt(S);
+    }
+    if (accept(S, TK_WHILE)) {
+        return parse_whilestmt(S);
     }
     if (accept(S, '{')) {
         return parse_blockstmt(S);
@@ -189,6 +193,14 @@ static AST* parse_expr(State* S)
         ret = EXP2(BINOP, ret, parse_expr(S));
         ret->val.lint = TK_EQ;
     }
+    if (accept(S, '<')) {
+        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret->val.lint = '<';
+    }
+    if (accept(S, '>')) {
+        ret = EXP2(BINOP, parse_expr(S), ret);
+        ret->val.lint = '<';
+    }
     return ret;
 }
 
@@ -217,7 +229,6 @@ static AST* parse_ifstmt(State* S)
 {
     expect(S, '(');
     AST* expr = parse_expr(S);
-
     expect(S, ')');
 
     AST* body = parse_stmt(S);
@@ -229,6 +240,17 @@ static AST* parse_ifstmt(State* S)
 
     AST* ret = EXP3(IFSTMT, expr, body, else_body);
     return ret;
+}
+
+static AST* parse_whilestmt(State* S)
+{
+    expect(S, '(');
+    AST* expr = parse_expr(S);
+    expect(S, ')');
+
+    AST* body = parse_stmt(S);
+
+    return EXP2(WHILESTMT, expr, body);
 }
 
 static AST* parse_assignstmt(State* S)
@@ -293,7 +315,7 @@ void destroy_ast(AST* ast)
     free(ast);
 }
 
-static char* get_ast_typename(ASTTYPE type)
+char* get_ast_typename(ASTTYPE type)
 {
     switch (type) {
         case BLOCKSTMT:
@@ -312,6 +334,10 @@ static char* get_ast_typename(ASTTYPE type)
             return "VAREXPR";
         case ASSIGNMENTEXPR:
             return "ASSIGNMENTEXPR";
+        case WHILESTMT:
+            return "WHILESTMT";
+        case HTMLEXPR:
+            return "HTMLEXPR";
         default:
             return "UNKNOWNTYPE";
     }
@@ -327,6 +353,7 @@ void print_ast(AST* ast, int level)
 
     switch (ast->type) {
         case STRINGEXPR:
+        case VAREXPR:
             puts(ast->val.str);
             break;
         case LONGEXPR:
