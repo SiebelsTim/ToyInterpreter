@@ -99,7 +99,7 @@ static char* str_append(char* str, char append, size_t* size, size_t* capacity)
     return str;
 }
 
-static char* fetch_str(State* S, int (*proceed_condition)(int c))
+static char* fetch_str(State* S, int (*proceed_condition)(int))
 {
     size_t pos = 0;
     size_t capacity = 5;
@@ -217,7 +217,7 @@ static TOKEN lex_str(State* S)
 int lex_num(State* S)
 {
     char* numstr = fetch_str(S, isdigit);
-    long n = strtol(numstr, NULL, 10);
+    int64_t n = (int64_t) strtoll(numstr, NULL, 10);
     free(numstr);
     state_set_long(S, n);
 
@@ -278,21 +278,21 @@ int get_token(State* S)
 
     switch (c) {
         case '&':
-            if ('&' == (c = get_next_char(S))) {
+            if ('&' == get_next_char(S)) {
                 get_next_char(S);
                 return TK_AND;
             } else {
                 return '&';
             }
         case '|':
-            if ('|' == (c = get_next_char(S))) {
+            if ('|' ==get_next_char(S)) {
                 get_next_char(S);
                 return TK_OR;
             } else {
                 return '|';
             }
         case '=':
-            if ('=' == (c = get_next_char(S))) {
+            if ('=' == get_next_char(S)) {
                 get_next_char(S);
                 return TK_EQ;
             } else {

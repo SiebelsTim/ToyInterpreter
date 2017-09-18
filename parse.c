@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stdnoreturn.h>
 #include "parse.h"
-#include "lex.h"
 
 #define EXP0(type) new_ast(type, NULL, NULL, NULL, NULL)
 #define EXP1(type, one) new_ast(type, one, NULL, NULL, NULL)
@@ -161,6 +160,7 @@ static AST* parse_primary(State* S)
     }
 
     parseerror(S, "Unexpected token '%s', expected primary", get_token_name(S->token));
+    return NULL;
 }
 
 

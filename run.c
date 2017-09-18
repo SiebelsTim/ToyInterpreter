@@ -173,6 +173,7 @@ static int64_t tolong(Runtime* R, int idx)
             return var->u.lint;
         default:
             runtimeerror("tolong for undefined value.");
+            return 0;
     }
 }
 

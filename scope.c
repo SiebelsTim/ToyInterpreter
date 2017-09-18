@@ -1,7 +1,6 @@
 #include <memory.h>
 #include <stdlib.h>
 #include "scope.h"
-#include "run.h"
 
 static const Variant undefined = {.type = UNDEFINED};
 
@@ -42,7 +41,10 @@ static void try_resize(Scope* scope)
     if (scope->capacity < scope->size+1) {
         scope->capacity *= 2;
         Variable* tmp = realloc(scope->vars, sizeof(*scope->vars) * scope->capacity);
-        if (!tmp) runtimeerror("Out of memory");
+        if (!tmp) {
+            runtimeerror("Out of memory");
+            return;
+        }
 
         memset(&tmp[scope->size], 0, scope->capacity - scope->size);
         scope->vars = tmp;

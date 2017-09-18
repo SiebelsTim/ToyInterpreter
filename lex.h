@@ -67,7 +67,7 @@ static inline void state_set_string(State* S, char* str)
     S->u.string = str;
 }
 
-static inline void state_set_long(State* S, long n)
+static inline void state_set_long(State* S, int64_t n)
 {
     if (S->val == MALLOCSTR) {
         free(S->u.string);

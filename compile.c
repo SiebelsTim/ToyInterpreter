@@ -1,8 +1,9 @@
 #include <stdlib.h>
 #include <stdnoreturn.h>
 #include <assert.h>
+#include <stdint.h>
+#include <inttypes.h>
 #include "compile.h"
-#include "parse.h"
 
 Function* create_function()
 {
@@ -307,7 +308,7 @@ void print_code(Function* fn)
             case OP_LONG:
                 lint = *fn->ip++ << 4;
                 lint |= *fn->ip++;
-                printf("%ld", lint);
+                printf("%" PRId64, lint);
                 break;
             case OP_BIN:
                 printf("%s", get_token_name(*fn->ip++));
