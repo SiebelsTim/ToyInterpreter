@@ -3,6 +3,7 @@
 #include <memory.h>
 #include <stdbool.h>
 #include <stdnoreturn.h>
+#include <inttypes.h>
 #include "parse.h"
 
 #define EXP0(type) new_ast(type, NULL, NULL, NULL, NULL)
@@ -114,6 +115,23 @@ static AST* parse_stmt(State* S)
     return ret;
 }
 
+static AST* parse_varexpr(State* S)
+{
+    if (S->token == TK_VAR) {
+        AST* ret;
+        ret = EXP0(VAREXPR);
+        ret->val.str = overtake_str(S);
+        expect(S, TK_VAR); // Skip
+        if (accept(S, '=')) {
+            ret->type = ASSIGNMENTEXPR;
+            ret->node1 = parse_expr(S);
+        }
+        return ret;
+    }
+
+    return NULL;
+}
+
 static AST* parse_primary(State* S)
 {
     AST* ret;
@@ -141,16 +159,30 @@ static AST* parse_primary(State* S)
         ret->val.lint = 0;
         return ret;
     }
-
-    if (S->token == TK_VAR) {
-        ret = EXP0(VAREXPR);
-        ret->val.str = overtake_str(S);
-        expect(S, TK_VAR); // Skip
-        if (accept(S, '=')) {
-            ret->type = ASSIGNMENTEXPR;
-            ret->node1 = parse_expr(S);
+    if (accept(S, TK_PLUSPLUS)) {
+        if (S->token == TK_VAR) {
+            ret = EXP1(PREFIXOP, parse_varexpr(S));
+            ret->val.lint = '+';
+            return ret;
+        } else {
+            expect(S, TK_VAR); // Error
+            return NULL;
         }
-        return ret;
+    }
+    if (accept(S, TK_MINUSMINUS)) {
+        if (S->token == TK_VAR) {
+            ret = EXP1(PREFIXOP, parse_varexpr(S));
+            ret->val.lint = '-';
+            return ret;
+        } else {
+            expect(S, TK_VAR); // Error
+            return NULL;
+        }
+    }
+
+    AST* varexpr = NULL;
+    if ((varexpr = parse_varexpr(S)) != NULL) {
+        return varexpr;
     }
 
     if (accept(S, '(')) {
@@ -208,6 +240,14 @@ static AST* parse_expr(State* S)
     if (accept(S, '>')) {
         ret = EXP2(BINOP, parse_expr(S), ret);
         ret->val.lint = '<';
+    }
+    if (accept(S, TK_PLUSPLUS)) {
+        ret = EXP1(POSTFIXOP, ret);
+        ret->val.lint = '+';
+    }
+    if (accept(S, TK_MINUSMINUS)) {
+        ret = EXP1(POSTFIXOP, ret);
+        ret->val.lint = '-';
     }
 
     return ret;
@@ -341,6 +381,10 @@ char* get_ast_typename(ASTTYPE type)
             return "LONGEXPR";
         case BINOP:
             return "BINOP";
+        case PREFIXOP:
+            return "PREFIXOP";
+        case POSTFIXOP:
+            return "POSTFIXOP";
         case VAREXPR:
             return "VAREXPR";
         case ASSIGNMENTEXPR:
@@ -369,7 +413,7 @@ void print_ast(AST* ast, int level)
             puts(ast->val.str);
             break;
         case LONGEXPR:
-            printf("%ld\n", ast->val.lint);
+            printf("%" PRId64 "\n", ast->val.lint);
             break;
         case BINOP:
             printf("%c\n", (char) ast->val.lint);

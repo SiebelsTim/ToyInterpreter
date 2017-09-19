@@ -315,6 +315,16 @@ static void run_function(Runtime* R, Function* fn)
             case OP_BIN:
                 run_binop(R, fn);
                 break;
+            case OP_ADD1:
+                lint = tolong(R, -1);
+                pop(R);
+                pushlong(R, lint + 1);
+                break;
+            case OP_SUB1:
+                lint = tolong(R, -1);
+                pop(R);
+                pushlong(R, lint - 1);
+                break;
             case OP_LOOKUP:
                 push(R, lookup(R, fn->strs[*fn->ip++]));
                 break;

@@ -13,6 +13,8 @@ typedef enum Operator {
     OP_TRUE,
     OP_FALSE,
     OP_BIN, // Type in next operator
+    OP_ADD1, // Add 1
+    OP_SUB1, // Subtract 1
     OP_ASSIGN,
     OP_LOOKUP, // String in next operator
     OP_JMP,

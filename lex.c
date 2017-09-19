@@ -298,6 +298,29 @@ int get_token(State* S)
             } else {
                 return '=';
             }
+        case '+':
+            if ('+' == get_next_char(S)) {
+                get_next_char(S);
+                return TK_PLUSPLUS;
+            } else {
+                return '+';
+            }
+        case '-':
+            if ('-' == get_next_char(S)) {
+                get_next_char(S);
+                return TK_MINUSMINUS;
+            } else {
+                return '-';
+            }
+        case '/':
+            if ('/' == get_next_char(S)) {
+                while (get_next_char(S) != '\n')
+                    ;
+                S->lineno++;
+                return get_token(S);
+            } else {
+                return '/';
+            }
         default:
             get_next_char(S);
             return c;
@@ -360,7 +383,7 @@ static char* tokennames[] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, // Ends with 255
 
     "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "IF", "ELSE",
-    "TRUE", "FALSE", "VAR", "AND", "OR", "EQ", "HTML", "WHILE", "FOR", "END"
+    "TRUE", "FALSE", "VAR", "AND", "OR", "EQ", "HTML", "WHILE", "FOR", "++", "--", "END"
 };
 
 char* get_token_name(int tok)

@@ -178,6 +178,28 @@ static void compile_binop(Function* fn, AST* ast)
     emitraw(fn, ast->val.lint);
 }
 
+static void compile_prefixop(Function* fn, AST* ast)
+{
+    assert(ast->node1->type == VAREXPR);
+    compile(fn, ast->node1);
+    int nameidx = fn->code[fn->codesize - 1];
+    assert(nameidx < fn->strlen);
+    emit(fn, OP_ADD1);
+    emit(fn, OP_ASSIGN);
+    emitraw(fn, nameidx);
+}
+static void compile_postfixop(Function* fn, AST* ast)
+{
+    assert(ast->node1->type == VAREXPR);
+    compile(fn, ast->node1);
+    int nameidx = fn->code[fn->codesize - 1];
+    assert(nameidx < fn->strlen);
+    emit(fn, OP_ADD1);
+    emit(fn, OP_ASSIGN);
+    emitraw(fn, nameidx);
+    emit(fn, OP_SUB1);
+}
+
 static void compile_whilestmt(Function* fn, AST* ast)
 {
     assert(ast->type == WHILESTMT);
@@ -232,6 +254,12 @@ Function* compile(Function* fn, AST* ast)
             break;
         case BINOP:
             compile_binop(fn, ast);
+            break;
+        case PREFIXOP:
+            compile_prefixop(fn, ast);
+            break;
+        case POSTFIXOP:
+            compile_postfixop(fn, ast);
             break;
         case LONGEXPR:
             emitlong(fn, ast->val.lint);

@@ -12,6 +12,8 @@ typedef enum ASTTYPE {
     FORSTMT,
     STRINGEXPR,
     BINOP,
+    POSTFIXOP,
+    PREFIXOP,
     LONGEXPR,
     VAREXPR,
     ASSIGNMENTEXPR,
