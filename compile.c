@@ -300,7 +300,7 @@ void print_code(Function* fn)
 {
     int64_t lint;
     while ((size_t)(fn->ip - fn->code) < fn->codesize) {
-        printf("%lu: ", fn->ip - fn->code);
+        printf("%04lx: ", fn->ip - fn->code);
         const char* opname = get_Operator_name(*fn->ip);
         if (!opname) {
             printf("Unexpected op: %d", *fn->ip);
@@ -327,7 +327,7 @@ void print_code(Function* fn)
                 break;
             case OP_JMP:
             case OP_JMPZ:
-                printf(":%d", *fn->ip++);
+                printf(":%04lx", (unsigned long)*fn->ip++);
                 break;
 
             default:
