@@ -13,12 +13,13 @@ typedef struct Instruction {
     Operator* operator;
     union {
         int64_t lint;
-        int8_t addr;
+        RelAddr addr;
         char* str;
     } data;
 } Instruction;
 
-typedef void (*Optimizer)(Function* fn, Block*);
+typedef void (*Optimizer)(Function*, Block*);
+typedef void (*GlobalOptimizer)(Function*);
 
 Instruction* code_to_instructions(Function* fn);
 void optimize(Function* fn);

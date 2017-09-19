@@ -37,6 +37,9 @@ typedef struct Function {
     uint16_t strcapacity;
 } Function;
 
+typedef uint32_t RelAddr;
+_Static_assert(sizeof(RelAddr) == sizeof(Operator), "RelAddr must be == Operator in size");
+
 Function* create_function();
 void free_function(Function* fn);
 

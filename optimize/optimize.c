@@ -68,6 +68,8 @@ Instruction* code_to_instructions(Function* fn)
                 ret[size].data.lint = *++fn->ip << 4;
                 ret[size].data.lint |= *++fn->ip;
                 break;
+            default:
+                break;
         }
         size++;
         fn->ip++;
@@ -95,7 +97,7 @@ static bool is_push_operation(Operator op)
 }
 
 
-static Instruction* find_instruction_with_addr(Function* fn, Instruction* ins, int8_t addr)
+static Instruction* find_instruction_with_addr(Function* fn, Instruction* ins, RelAddr addr)
 {
     while (ins->operator != NULL) {
         if (ins->operator - fn->code == addr) {
@@ -134,12 +136,11 @@ static int greater_than(const void* p1, const void* p2)
 
 static size_t remove_duplicates(Instruction** array, size_t size)
 {
-    int i;
     int last = 0;
     if (size == 0)
         return size;
 
-    for (i = 1; i < size; i++)
+    for (size_t i = 1; i < size; i++)
     {
         if (array[i] != array[last])
             array[++last] = array[i];
@@ -208,6 +209,7 @@ static void insert_nop(Operator* op)
 
 static void remove_add0(Function* fn, Block* blk)
 {
+    (void)fn; // unused
     // last two longs
     Operator* last = NULL;
     Operator* last2 = NULL;
@@ -261,22 +263,86 @@ static void remove_lookup_assign(Function* fn, Block* blk)
     }
 }
 
-static Optimizer optimizations[] = {
+
+static bool jmplist_contains(Operator** jmps, size_t size, RelAddr rel_addr)
+{
+    for (size_t i = 0; i < size; ++i) {
+        if (*jmps[i] == rel_addr) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void adjust_jumps(Operator** jmps, size_t size, RelAddr removed_nop_rel, const Operator* op)
+{
+    for (size_t i = 0; i < size; ++i) {
+        assert(*jmps[i] != removed_nop_rel);
+        if (*jmps[i] >= removed_nop_rel) {
+            (*jmps[i]) -= 1; // Jump address moved
+        }
+        if (jmps[i] >= op) {
+            jmps[i] -= 1; // The pointer will move
+        }
+    }
+}
+
+static void remove_nops(Function* fn)
+{
+    size_t capacity = 4;
+    size_t size = 0;
+    Operator** jmps = calloc(sizeof(*jmps), capacity);
+    while ((size_t)(fn->ip - fn->code) < fn->codesize) {
+        if (*fn->ip == OP_JMP || *fn->ip == OP_JMPZ) {
+            try_resize(&capacity, size, (void**) &jmps, sizeof(*jmps), optimizeerror);
+            jmps[size++] = ++fn->ip;
+            fn->ip++; // Skip over jump addr
+        }
+        next_instruction(&fn->ip);
+    }
+    fn->ip = fn->code;
+
+
+    while ((size_t)(fn->ip - fn->code) < fn->codesize) {
+        if (*fn->ip == OP_NOP && !jmplist_contains(jmps, size, fn->ip - fn->code)) {
+            adjust_jumps(jmps, size, (RelAddr)(fn->ip - fn->code), fn->ip);
+            memmove(fn->ip, fn->ip+1, (fn->codesize - (fn->ip - fn->code)) * sizeof(*fn->ip));
+            fn->codesize--;
+        } else {
+            next_instruction(&fn->ip);
+        }
+    }
+    fn->ip = fn->code;
+
+    free(jmps);
+}
+
+static Optimizer localoptimizations[] = {
         remove_add0,
         remove_lookup_assign
+};
+
+static GlobalOptimizer globaloptimizations[] = {
+        remove_nops // This must be last, as it changes Blocks
 };
 
 void optimize(Function* fn)
 {
     Block* blocks = identify_basic_blocks(fn);
 
-    for (int i = 0; i < arrcount(optimizations); ++i) {
+    for (size_t i = 0; i < arrcount(localoptimizations); ++i) {
         Block* current = blocks;
         while (current) {
-            optimizations[i](fn, current);
+            localoptimizations[i](fn, current);
             current = current->next;
         }
     }
 
     free_block(blocks);
+
+
+    for (size_t i = 0; i < arrcount(globaloptimizations); ++i) {
+        globaloptimizations[i](fn);
+    }
 }

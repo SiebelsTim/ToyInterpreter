@@ -45,7 +45,7 @@ noreturn void compiletimeerror(char* fmt, ...)
     va_end(ap);
 
     char buf[256];
-    snprintf(buf, arrcount(buf), "Parse error: %s.", msgbuf);
+    snprintf(buf, arrcount(buf), "Compiler error: %s.", msgbuf);
 
     puts(buf);
 
@@ -315,6 +315,8 @@ Function* compile(Function* fn, AST* ast)
 
 void print_code(Function* fn)
 {
+    Operator* prev_ip = fn->ip;
+    fn->ip = fn->code;
     int64_t lint;
     while ((size_t)(fn->ip - fn->code) < fn->codesize) {
         printf("%04lx: ", fn->ip - fn->code);
@@ -326,6 +328,7 @@ void print_code(Function* fn)
         }
         switch (*fn->ip++) {
             case OP_STR:
+                assert(*fn->ip < fn->strlen);
                 printf("\"%s\"", fn->strs[*fn->ip++]);
                 break;
             case OP_LONG:
@@ -337,9 +340,11 @@ void print_code(Function* fn)
                 printf("%s", get_token_name(*fn->ip++));
                 break;
             case OP_ASSIGN:
+                assert(*fn->ip < fn->strlen);
                 printf("$%s = pop()", fn->strs[*fn->ip++]);
                 break;
             case OP_LOOKUP:
+                assert(*fn->ip < fn->strlen);
                 printf("$%s", fn->strs[*fn->ip++]);
                 break;
             case OP_JMP:
@@ -353,5 +358,5 @@ void print_code(Function* fn)
         puts("");
     }
 
-    fn->ip = fn->code;
+    fn->ip = prev_ip;
 }
