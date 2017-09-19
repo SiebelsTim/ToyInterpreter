@@ -12,8 +12,12 @@
         ENUM_EL(OP_TRUE,) \
         ENUM_EL(OP_FALSE,) \
         ENUM_EL(OP_BIN,) \
+        ENUM_EL(OP_SUB,) \
+        ENUM_EL(OP_ADD,) \
         ENUM_EL(OP_ADD1,) \
         ENUM_EL(OP_SUB1,) \
+        ENUM_EL(OP_MUL,) \
+        ENUM_EL(OP_DIV,) \
         ENUM_EL(OP_ASSIGN,) \
         ENUM_EL(OP_LOOKUP,) \
         ENUM_EL(OP_JMP,) \
@@ -37,6 +41,8 @@ Function* create_function();
 void free_function(Function* fn);
 
 Function* compile(Function* fn, AST* root);
+
+void compiletimeerror(char* fmt, ...);
 
 void print_code(Function* fn);
 

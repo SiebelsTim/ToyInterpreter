@@ -9,6 +9,7 @@
 #include "scope.h"
 #include "compile.h"
 #include "array-util.h"
+#include "optimize/optimize.h"
 
 Variant cpy_var(Variant var)
 {
@@ -225,9 +226,8 @@ static bool compare_equal(Variant* lhs, Variant* rhs)
 }
 
 
-static void run_binop(Runtime* R, Function* fn)
+static void run_binop(Runtime* R, Function* fn, int op)
 {
-    int op = *fn->ip++;
     if (op == '.') {
         return run_stringaddexpr(R);
     }
@@ -313,7 +313,19 @@ static void run_function(Runtime* R, Function* fn)
                 pushbool(R, 0);
                 break;
             case OP_BIN:
-                run_binop(R, fn);
+                run_binop(R, fn, *fn->ip++);
+                break;
+            case OP_ADD:
+                run_binop(R, fn, '+');
+                break;
+            case OP_SUB:
+                run_binop(R, fn, '-');
+                break;
+            case OP_MUL:
+                run_binop(R, fn, '*');
+                break;
+            case OP_DIV:
+                run_binop(R, fn, '/');
                 break;
             case OP_ADD1:
                 lint = tolong(R, -1);
@@ -357,7 +369,11 @@ void run_file(FILE* file) {
     compile(fn, ast);
 
     Runtime* R = create_runtime();
-    //print_code(fn);
+    puts("BEFORE");
+    print_code(fn);
+    optimize(fn);
+    puts("AFTER");
+    print_code(fn);
     run_function(R, fn);
     destroy_runtime(R);
 

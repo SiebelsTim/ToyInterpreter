@@ -2,6 +2,8 @@
 #define PHPINTERP_LEX_H
 
 #include <stdio.h>
+#include <assert.h>
+#include <stdlib.h>
 
 #define arrcount(arr) (sizeof(arr) / sizeof((arr)[0]))
 

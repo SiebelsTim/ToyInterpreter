@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include "compile.h"
+#include "parse.h"
 
 DEFINE_ENUM(Operator, ENUM_OPERATOR);
 
@@ -176,8 +177,24 @@ static void compile_binop(Function* fn, AST* ast)
     assert(ast->node1 && ast->node2);
     compile(fn, ast->node1);
     compile(fn, ast->node2);
-    emit(fn, OP_BIN);
-    emitraw(fn, ast->val.lint);
+    switch (ast->val.lint) {
+        case '+':
+            emit(fn, OP_ADD);
+            break;
+        case '-':
+            emit(fn, OP_SUB);
+            break;
+        case '/':
+            emit(fn, OP_DIV);
+            break;
+        case '*':
+            emit(fn, OP_MUL);
+            break;
+        default:
+            emit(fn, OP_BIN);
+            emitraw(fn, ast->val.lint);
+            break;
+    }
 }
 
 static void compile_prefixop(Function* fn, AST* ast)
