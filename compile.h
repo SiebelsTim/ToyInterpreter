@@ -4,23 +4,23 @@
 #include <stdint.h>
 #include "parse.h"
 
+#define ENUM_OPERATOR(ENUM_EL) \
+        ENUM_EL(OP_INVALID, = 0) \
+        ENUM_EL(OP_ECHO,) \
+        ENUM_EL(OP_STR,) \
+        ENUM_EL(OP_LONG,) \
+        ENUM_EL(OP_TRUE,) \
+        ENUM_EL(OP_FALSE,) \
+        ENUM_EL(OP_BIN,) \
+        ENUM_EL(OP_ADD1,) \
+        ENUM_EL(OP_SUB1,) \
+        ENUM_EL(OP_ASSIGN,) \
+        ENUM_EL(OP_LOOKUP,) \
+        ENUM_EL(OP_JMP,) \
+        ENUM_EL(OP_JMPZ,) \
+        ENUM_EL(OP_NOP,) \
 
-typedef enum Operator {
-    OP_INVALID = 0,
-    OP_ECHO,
-    OP_STR,
-    OP_LONG, // Long in next two operators
-    OP_TRUE,
-    OP_FALSE,
-    OP_BIN, // Type in next operator
-    OP_ADD1, // Add 1
-    OP_SUB1, // Subtract 1
-    OP_ASSIGN,
-    OP_LOOKUP, // String in next operator
-    OP_JMP,
-    OP_JMPZ,
-    OP_NOP
-} Operator;
+DECLARE_ENUM(Operator, ENUM_OPERATOR);
 
 typedef struct Function {
     Operator* ip;
@@ -38,7 +38,6 @@ void free_function(Function* fn);
 
 Function* compile(Function* fn, AST* root);
 
-char* get_op_name(Operator op);
 void print_code(Function* fn);
 
 #endif //PHPINTERP_COMPILE_H

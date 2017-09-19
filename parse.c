@@ -6,6 +6,8 @@
 #include <inttypes.h>
 #include "parse.h"
 
+DEFINE_ENUM(ASTTYPE, ENUM_ASTTYPE);
+
 #define EXP0(type) new_ast(type, NULL, NULL, NULL, NULL)
 #define EXP1(type, one) new_ast(type, one, NULL, NULL, NULL)
 #define EXP2(type, one, two) new_ast(type, one, two, NULL, NULL)
@@ -366,37 +368,6 @@ void destroy_ast(AST* ast)
     free(ast);
 }
 
-char* get_ast_typename(ASTTYPE type)
-{
-    switch (type) {
-        case BLOCKSTMT:
-            return "BLOCKSTMT";
-        case ECHOSTMT:
-            return "ECHOSTMT";
-        case IFSTMT:
-            return "IFSTMT";
-        case STRINGEXPR:
-            return "STRINGEXPR";
-        case LONGEXPR:
-            return "LONGEXPR";
-        case BINOP:
-            return "BINOP";
-        case PREFIXOP:
-            return "PREFIXOP";
-        case POSTFIXOP:
-            return "POSTFIXOP";
-        case VAREXPR:
-            return "VAREXPR";
-        case ASSIGNMENTEXPR:
-            return "ASSIGNMENTEXPR";
-        case WHILESTMT:
-            return "WHILESTMT";
-        case HTMLEXPR:
-            return "HTMLEXPR";
-        default:
-            return "UNKNOWNTYPE";
-    }
-}
 
 void print_ast(AST* ast, int level)
 {
@@ -404,7 +375,7 @@ void print_ast(AST* ast, int level)
         putchar('|');
         putchar(' ');
     }
-    printf("%p %s: ", ast, get_ast_typename(ast->type));
+    printf("%p %s: ", ast, get_ASTTYPE_name(ast->type));
 
     switch (ast->type) {
         case STRINGEXPR:

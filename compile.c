@@ -5,6 +5,8 @@
 #include <inttypes.h>
 #include "compile.h"
 
+DEFINE_ENUM(Operator, ENUM_OPERATOR);
+
 Function* create_function()
 {
     Function* ret = malloc(sizeof(Function));
@@ -287,43 +289,19 @@ Function* compile(Function* fn, AST* ast)
             compile_forstmt(fn, ast);
             break;
         default:
-            compiletimeerror("Unexpected Type '%s'", get_ast_typename(ast->type));
+            compiletimeerror("Unexpected Type '%s'", get_ASTTYPE_name(ast->type));
     }
 
     return fn;
 }
 
 
-static char* opmap[] = {
-        "OP_INVALID",
-        "OP_ECHO",
-        "OP_STR",
-        "OP_LONG",
-        "OP_TRUE",
-        "OP_FALSE",
-        "OP_BIN", 
-        "OP_ASSIGN",
-        "OP_LOOKUP",
-        "OP_JMP",
-        "OP_JMPZ",
-        "OP_NOP"
-};
-
-char* get_op_name(Operator op)
-{
-    if (op < sizeof(opmap)/sizeof(*opmap)) {
-        return opmap[op];
-    }
-
-    return NULL;
-}
-
 void print_code(Function* fn)
 {
     int64_t lint;
     while ((size_t)(fn->ip - fn->code) < fn->codesize) {
         printf("%lu: ", fn->ip - fn->code);
-        char* opname = get_op_name(*fn->ip);
+        const char* opname = get_Operator_name(*fn->ip);
         if (!opname) {
             printf("Unexpected op: %d", *fn->ip);
         } else {

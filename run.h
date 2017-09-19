@@ -3,15 +3,18 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include "enum-util.h"
 
-enum VARIANTTYPE {
-    UNDEFINED = 0,
-    STRING,
-    LONG
-};
+#define ENUM_VARIANTTYPE(ELEMENT) \
+    ELEMENT(UNDEFINED, =0)         \
+    ELEMENT(STRING,)               \
+    ELEMENT(LONG,)                 \
+
+DECLARE_ENUM(VARIANTTYPE, ENUM_VARIANTTYPE);
+
 
 typedef struct Variant {
-    enum VARIANTTYPE type;
+    VARIANTTYPE type;
     union {
         char* str;
         int64_t lint;

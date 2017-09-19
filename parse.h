@@ -3,22 +3,24 @@
 
 #include <stdio.h>
 #include "lex.h"
+#include "enum-util.h"
 
-typedef enum ASTTYPE {
-    BLOCKSTMT,
-    ECHOSTMT,
-    IFSTMT,
-    WHILESTMT,
-    FORSTMT,
-    STRINGEXPR,
-    BINOP,
-    POSTFIXOP,
-    PREFIXOP,
-    LONGEXPR,
-    VAREXPR,
-    ASSIGNMENTEXPR,
-    HTMLEXPR
-} ASTTYPE;
+#define ENUM_ASTTYPE(ENUM_EL)   \
+           ENUM_EL(BLOCKSTMT, =0)   \
+           ENUM_EL(ECHOSTMT,)    \
+           ENUM_EL(IFSTMT,)      \
+           ENUM_EL(WHILESTMT,)   \
+           ENUM_EL(FORSTMT,)     \
+           ENUM_EL(STRINGEXPR,)  \
+           ENUM_EL(BINOP,)       \
+           ENUM_EL(POSTFIXOP,)   \
+           ENUM_EL(PREFIXOP,)    \
+           ENUM_EL(LONGEXPR,)    \
+           ENUM_EL(VAREXPR,)     \
+           ENUM_EL(ASSIGNMENTEXPR,) \
+           ENUM_EL(HTMLEXPR,)    \
+
+DECLARE_ENUM(ASTTYPE, ENUM_ASTTYPE);
 
 typedef struct AST {
     ASTTYPE type;
@@ -35,7 +37,6 @@ typedef struct AST {
 
 AST* parse(FILE*);
 
-char* get_ast_typename(ASTTYPE ast);
 void print_ast(AST*, int level);
 
 void destroy_ast(AST*);
