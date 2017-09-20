@@ -243,8 +243,13 @@ int get_token(State* S)
             free(html);
             return syntax_error(S, "Expected php after <?");
         }
+
         S->mode = EMITOPENTAG;
         get_next_char(S); // Skip over last p
+        if (*html == '\0') { // We do not need to emit an empty str
+            free(html);
+            return get_token(S);
+        }
         S->u.string = html;
         return TK_HTML;
     } else if (S->mode == EMITOPENTAG) {

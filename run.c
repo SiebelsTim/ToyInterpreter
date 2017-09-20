@@ -369,11 +369,11 @@ void run_file(FILE* file) {
     compile(fn, ast);
 
     Runtime* R = create_runtime();
-    //puts("BEFORE\n");
-    //print_code(fn);
+//    puts("BEFORE\n");
+//    print_code(fn);
     optimize(fn);
-    //puts("AFTER\n");
-    //print_code(fn);
+//    puts("AFTER\n");
+//    print_code(fn);
     run_function(R, fn);
     destroy_runtime(R);
 
