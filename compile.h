@@ -2,6 +2,7 @@
 #define PHPINTERP_COMPILE_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "parse.h"
 
 #define ENUM_OPERATOR(ENUM_EL) \

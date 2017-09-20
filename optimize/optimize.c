@@ -2,6 +2,13 @@
 #include <memory.h>
 #include "optimize.h"
 #include "../array-util.h"
+#include "../op_util.h"
+#include "../macros.h"
+
+
+#define ITERATE_BLOCK(blk) Operator* current = (blk)->start; \
+    while (current <= (blk)->end) {
+#define END_ITERATE_BLOCK next_instruction(&current); }
 
 static void optimizeerror(char* str) {
     compiletimeerror(str);
@@ -9,37 +16,10 @@ static void optimizeerror(char* str) {
 
 static Operator* next_instruction(Operator** opptr)
 {
-        switch (**opptr) {
-            case OP_STR:
-            case OP_BIN:
-            case OP_ASSIGN:
-            case OP_LOOKUP:
-            case OP_JMP:
-            case OP_JMPZ:
-                (*opptr) += 1; // Skip
-                break;
-            case OP_LONG:
-                (*opptr) += 2; // Longs are two operators in size
-                break;
+    assert(**opptr != OP_INVALID);
+    size_t len = op_len(**opptr);
+    (*opptr) += len;
 
-            // Next, list all cases without parameters, so we get warnings if we forget
-            // to update this switch
-            case OP_ECHO:
-            case OP_TRUE:
-            case OP_FALSE:
-            case OP_SUB:
-            case OP_ADD:
-            case OP_ADD1:
-            case OP_SUB1:
-            case OP_MUL:
-            case OP_DIV:
-            case OP_NOP:
-                break;
-            case OP_INVALID:
-                compiletimeerror("OP Invalid encountered");
-                break;
-        }
-    (*opptr) += 1;
     return *opptr;
 }
 
@@ -81,7 +61,7 @@ Instruction* code_to_instructions(Function* fn)
     return ret;
 }
 
-static int64_t fetch_long(Operator* op)
+static int64_t fetch_long(const Operator* op)
 {
     assert(*op == OP_LONG);
     ++op;
@@ -91,9 +71,46 @@ static int64_t fetch_long(Operator* op)
     return ret;
 }
 
-static bool is_push_operation(Operator op)
+static const char* fetch_str(Function* fn, const Operator* op)
 {
-    return op != OP_NOP && op != OP_JMPZ && op != OP_JMP && op != OP_ECHO;
+    assert(*op == OP_STR || *op == OP_LOOKUP || *op == OP_ASSIGN);
+    ++op;
+    size_t idx = *op;
+    assert(idx < fn->strlen);
+    return fn->strs[idx];
+}
+
+// Returns true if possible to fetch long from op, return long in out param
+static bool op_to_long(Function* fn, const Operator* op, int64_t* out)
+{
+    int64_t _;
+    if (!out) { // maybe we only want to use it to check if it would succeed
+        out = &_;
+    }
+
+    const char* str;
+    char* end;
+    switch (*op) {
+        case OP_STR:
+            str = fetch_str(fn, op);
+            if (*str == '\0') *out = 0;
+            *out = strtoll(str, &end, 10);
+            if (*end != '\0') *out = 1; // strtoll did not succeed entirely.
+                                        // non-empty strs are truthy
+            break;
+        case OP_LONG:
+            *out = fetch_long(op);
+            break;
+        case OP_TRUE:
+            *out = 1;
+            break;
+        case OP_FALSE:
+            *out = 0;
+            break;
+        default:
+            return false;
+    }
+    return true;
 }
 
 
@@ -158,7 +175,7 @@ static Block* identify_basic_blocks(Function* fn)
     Instruction* ins_start = ins;
 
     while (ins->operator != NULL) {
-        if (*ins->operator == OP_JMP || *ins->operator == OP_JMPZ) {
+        if (is_jmp(*ins->operator)) {
             try_resize(&capacity, size, (void**)&leaders, sizeof(*leaders), optimizeerror);
             leaders[size++] = find_instruction_with_addr(fn, ins_start, ins->data.addr);
             assert(leaders[size-1] != NULL);
@@ -187,52 +204,38 @@ static Block* identify_basic_blocks(Function* fn)
 
 static void insert_nop(Operator* op)
 {
-    switch (*op) {
-        case OP_STR:
-        case OP_BIN:
-        case OP_ASSIGN:
-        case OP_LOOKUP:
-        case OP_JMP:
-        case OP_JMPZ:
-            *op++ = OP_NOP;
-            break;
-        case OP_LONG:
-            *op++ = OP_NOP;
-            *op++ = OP_NOP; // Longs are two operators in size
-            break;
-        default:
-            break;
+    size_t len = op_len(*op);
+    while (len--) {
+        *op++ = OP_NOP;
     }
-
-    *op = OP_NOP;
 }
 
 static void remove_add0(Function* fn, Block* blk)
 {
-    (void)fn; // unused
+    UNUSED(fn);
     // last two longs
     Operator* last = NULL;
     Operator* last2 = NULL;
-    Operator* current = blk->start;
-    while (current <= blk->end) {
+    ITERATE_BLOCK(blk)
+    {
         if (*current == OP_ADD) {
             assert(last && last2);
-            if (*last2 == OP_LONG && fetch_long(last2) == 0) {
+            int64_t lint;
+            if (*last2 == OP_LONG && op_to_long(fn, last2, &lint) && lint == 0) {
                 insert_nop(last2);
                 insert_nop(current); // For OP_LONG
-            } else if (*last == OP_LONG && fetch_long(last) == 0) {
+            } else if (*last == OP_LONG && op_to_long(fn, last, &lint) && lint == 0) {
                 insert_nop(last);
                 insert_nop(current); // For OP_LONG
             }
         }
 
-        if (is_push_operation(*current)) {
+        if (affects_stack(*current)) {
             last = last2;
             last2 = current;
         }
-
-        next_instruction(&current);
     }
+    END_ITERATE_BLOCK
 }
 
 
@@ -241,26 +244,49 @@ static void remove_lookup_assign(Function* fn, Block* blk)
 {
     // last stack operator
     Operator* last = NULL;
-    Operator* current = blk->start;
-    while (current < blk->end) {
+    ITERATE_BLOCK(blk)
+    {
         if (*current == OP_ASSIGN) {
             assert(last);
             if (*last == OP_LOOKUP) {
-                assert(*(last+1) < fn->strlen);
-                const char* lookupname = fn->strs[*(last+1)];
-                assert(*(current+1) < fn->strlen);
-                const char* assignname = fn->strs[*(current+1)];
+                const char* lookupname = fetch_str(fn, last);
+                const char* assignname = fetch_str(fn, current);
                 if (strcmp(lookupname, assignname) == 0) {
                     insert_nop(current);
                 }
             }
         }
 
-        if (is_push_operation(*current)) {
+        if (affects_stack(*current)) {
             last = current;
         }
-        next_instruction(&current);
     }
+    END_ITERATE_BLOCK
+}
+
+
+static void remove_jmpz_always_true(Function* fn, Block* blk)
+{
+    // Last stack op
+    Operator* last = NULL;
+    ITERATE_BLOCK(blk)
+    {
+        int64_t lint;
+        if (*current == OP_JMPZ && op_to_long(fn, last, &lint)) {
+            if (lint) { // Jump is never taken, simply remove it
+                insert_nop(last);
+                insert_nop(current);
+            } else { // Jump is always taken. Can be JMP
+                insert_nop(last);
+                *current = OP_JMP;
+            }
+        }
+
+        if (affects_stack(*current)) {
+            last = current;
+        }
+    }
+    END_ITERATE_BLOCK
 }
 
 
@@ -320,7 +346,8 @@ static void remove_nops(Function* fn)
 
 static Optimizer localoptimizations[] = {
         remove_add0,
-        remove_lookup_assign
+        remove_lookup_assign,
+        remove_jmpz_always_true
 };
 
 static GlobalOptimizer globaloptimizations[] = {

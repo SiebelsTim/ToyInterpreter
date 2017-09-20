@@ -369,7 +369,10 @@ void run_file(FILE* file) {
     compile(fn, ast);
 
     Runtime* R = create_runtime();
+    //puts("BEFORE\n");
+    //print_code(fn);
     optimize(fn);
+    //puts("AFTER\n");
     //print_code(fn);
     run_function(R, fn);
     destroy_runtime(R);
@@ -393,7 +396,7 @@ void print_stack(Runtime* R)
                 printf("#%d STRING: %s", i, var->u.str);
                 break;
             case LONG:
-                printf("#%d LONG: %ld",i, var->u.lint);
+                printf("#%d LONG: %" PRId64,i, var->u.lint);
                 break;
         }
         puts("");
