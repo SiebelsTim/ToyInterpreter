@@ -89,4 +89,38 @@ size_t op_len(Operator op)
     }
 }
 
+void swap_adjacent_ops(Operator* op1, Operator* op2)
+{
+    size_t len1 = op_len(*op1);
+    size_t len2 = op_len(*op2);
+    assert(op1 + len1 == op2 || op2 + len2 == op1);
+    if (len1 == len2) {
+        while (len1--) {
+            Operator tmp = op2[len1];
+            op2[len1] = op1[len1];
+            op1[len1] = tmp;
+        }
+    } else if (len1 > len2) {
+        Operator cpy[len1];
+        memcpy(cpy, op1, sizeof(cpy));
+        for (size_t i = 0; i < len2; ++i) {
+            op1[i] = op2[i];
+        }
+        for (size_t i = 0; i < arrcount(cpy); ++i) {
+            op1[len2 + i] = cpy[i];
+        }
+    } else {
+        swap_adjacent_ops(op2, op1);
+    }
+}
+
+
+void insert_nop(Operator* op)
+{
+    size_t len = op_len(*op);
+    while (len--) {
+        *op++ = OP_NOP;
+    }
+}
+
 #endif //PHPINTERP_OP_UTIL_H

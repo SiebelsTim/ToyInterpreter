@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <memory.h>
+#include <tgmath.h>
 #include "optimize.h"
 #include "../array-util.h"
 #include "../op_util.h"
@@ -202,13 +203,6 @@ static Block* identify_basic_blocks(Function* fn)
     return ret;
 }
 
-static void insert_nop(Operator* op)
-{
-    size_t len = op_len(*op);
-    while (len--) {
-        *op++ = OP_NOP;
-    }
-}
 
 static void remove_add0(Function* fn, Block* blk)
 {
@@ -221,10 +215,10 @@ static void remove_add0(Function* fn, Block* blk)
         if (*current == OP_ADD) {
             assert(last && last2);
             int64_t lint;
-            if (*last2 == OP_LONG && op_to_long(fn, last2, &lint) && lint == 0) {
+            if (op_to_long(fn, last2, &lint) && lint == 0) {
                 insert_nop(last2);
                 insert_nop(current); // For OP_LONG
-            } else if (*last == OP_LONG && op_to_long(fn, last, &lint) && lint == 0) {
+            } else if (op_to_long(fn, last, &lint) && lint == 0) {
                 insert_nop(last);
                 insert_nop(current); // For OP_LONG
             }
@@ -238,6 +232,45 @@ static void remove_add0(Function* fn, Block* blk)
     END_ITERATE_BLOCK
 }
 
+static inline bool ispowerof2(unsigned long x) {
+    return x && !(x & (x - 1));
+}
+
+static void remove_mul_pow2(Function* fn, Block* blk)
+{
+    // last two stack ops
+    Operator* last = NULL;
+    Operator* last2 = NULL;
+    ITERATE_BLOCK(blk)
+    {
+        if (*current == OP_MUL) {
+            assert(last && last2);
+            int64_t lint;
+            if (*last2 == OP_LONG && op_to_long(fn, last2, &lint) &&
+                ispowerof2((uint64_t)lint) && lint != 1) {
+                *last2 = OP_LONG;
+                int64_t sqrt = (int64_t)sqrt(lint);
+                last2[1] = (Operator)(sqrt & 0xffffffff00000000);
+                last2[2] = (Operator)(sqrt & 0xffffffff);
+                *current = OP_SHL;
+            } else if (*last == OP_LONG && op_to_long(fn, last, &lint) &&
+                       ispowerof2((uint64_t)lint) && lint != 1) {
+                *last = OP_LONG;
+                int64_t sqrt = (int64_t)sqrt(lint);
+                last[1] = (Operator)(sqrt & 0xffffffff00000000);
+                last[2] = (Operator)(sqrt & 0xffffffff);
+                swap_adjacent_ops(last, last2);
+                *current = OP_SHL;
+            }
+        }
+
+        if (affects_stack(*current)) {
+            last = last2;
+            last2 = current;
+        }
+    }
+    END_ITERATE_BLOCK
+}
 
 // Lookup $a => assign $a is identical to Lookup $a
 static void remove_lookup_assign(Function* fn, Block* blk)
@@ -346,6 +379,7 @@ static void remove_nops(Function* fn)
 
 static Optimizer localoptimizations[] = {
         remove_add0,
+        remove_mul_pow2,
         remove_lookup_assign,
         remove_jmpz_always_true
 };

@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include "compile.h"
-#include "parse.h"
 
 DEFINE_ENUM(Operator, ENUM_OPERATOR);
 
@@ -41,11 +40,11 @@ noreturn void compiletimeerror(char* fmt, ...)
     va_list ap;
     char msgbuf[256];
     va_start(ap, fmt);
-    vsnprintf(msgbuf, arrcount(msgbuf), fmt, ap);
+    vsnprintf(msgbuf, sizeof(msgbuf), fmt, ap);
     va_end(ap);
 
     char buf[256];
-    snprintf(buf, arrcount(buf), "Compiler error: %s.", msgbuf);
+    snprintf(buf, sizeof(buf), "Compiler error: %s.", msgbuf);
 
     puts(buf);
 

@@ -71,11 +71,11 @@ static TOKEN syntax_error(State* S, char* fmt, ...)
     va_list ap;
     char msgbuf[256];
     va_start(ap, fmt);
-    vsnprintf(msgbuf, arrcount(msgbuf), fmt, ap);
+    vsnprintf(msgbuf, sizeof(msgbuf), fmt, ap);
     va_end(ap);
 
     char buf[256];
-    snprintf(buf, arrcount(buf), "%s on line %d.", msgbuf, S->lineno);
+    snprintf(buf, sizeof(buf), "%s on line %d.", msgbuf, S->lineno);
 
     S->val = ERROR;
     S->error = strdup(buf);
