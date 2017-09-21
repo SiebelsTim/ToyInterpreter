@@ -23,13 +23,15 @@ typedef enum TOKEN {
     TK_OR,
     TK_EQ,
 
-    TK_HTML,
     TK_WHILE,
     TK_FOR,
 
     TK_PLUSPLUS,
     TK_MINUSMINUS,
+    TK_SHL,
+    TK_SHR,
 
+    TK_HTML,
     TK_END
 } TOKEN;
 enum MODE {

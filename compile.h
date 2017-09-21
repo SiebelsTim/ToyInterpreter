@@ -19,6 +19,8 @@
         ENUM_EL(OP_SUB1,) \
         ENUM_EL(OP_MUL,) \
         ENUM_EL(OP_DIV,) \
+        ENUM_EL(OP_SHL,) \
+        ENUM_EL(OP_SHR,) \
         ENUM_EL(OP_ASSIGN,) \
         ENUM_EL(OP_LOOKUP,) \
         ENUM_EL(OP_JMP,) \

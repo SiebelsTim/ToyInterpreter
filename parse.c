@@ -223,6 +223,15 @@ static AST* parse_expr(State* S)
         ret = EXP2(BINOP, ret, parse_expr(S));
         ret->val.lint = '/';
     }
+    if (accept(S, TK_SHL)) {
+        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret->val.lint = TK_SHL;
+    }
+    if (accept(S, TK_SHR)) {
+        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret->val.lint = TK_SHR;
+    }
+
     if (accept(S, TK_AND)) {
         ret = EXP2(BINOP, ret, parse_expr(S));
         ret->val.lint = TK_AND;
@@ -231,6 +240,7 @@ static AST* parse_expr(State* S)
         ret = EXP2(BINOP, ret, parse_expr(S));
         ret->val.lint = TK_OR;
     }
+
     if (accept(S, TK_EQ)) {
         ret = EXP2(BINOP, ret, parse_expr(S));
         ret->val.lint = TK_EQ;
@@ -243,6 +253,7 @@ static AST* parse_expr(State* S)
         ret = EXP2(BINOP, parse_expr(S), ret);
         ret->val.lint = '<';
     }
+
     if (accept(S, TK_PLUSPLUS)) {
         ret = EXP1(POSTFIXOP, ret);
         ret->val.lint = '+';

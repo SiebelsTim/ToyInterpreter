@@ -19,6 +19,8 @@ bool is_push_op(Operator op)
         case OP_DIV:
         case OP_ASSIGN:
         case OP_LOOKUP:
+        case OP_SHL:
+        case OP_SHR:
             return true;
         case OP_JMP:
         case OP_JMPZ:
@@ -64,6 +66,8 @@ bool is_immediate(Operator op)
         case OP_JMP:
         case OP_JMPZ:
         case OP_NOP:
+        case OP_SHL:
+        case OP_SHR:
             return false;
     }
 }

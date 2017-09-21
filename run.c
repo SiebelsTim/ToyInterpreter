@@ -30,6 +30,7 @@ void free_var(Variant var)
 
 noreturn void runtimeerror(char* fmt)
 {
+    printf("Runtime Error: ");
     puts(fmt);
     abort();
 }
@@ -232,8 +233,8 @@ static void run_binop(Runtime* R, int op)
         return run_stringaddexpr(R);
     }
 
-    if (op == '+' || op == '-' || op == '*' ||
-        op == '/' || op == '<' || op == TK_AND || op == TK_OR) {
+    if (op == '+' || op == '-' || op == '*' || op == '/' || op == '<' ||
+        op == TK_AND || op == TK_OR || op == TK_SHL || op == TK_SHR) {
         int64_t rhs = tolong(R, -1);
         pop(R);
         int64_t lhs = tolong(R, -1);
@@ -260,6 +261,12 @@ static void run_binop(Runtime* R, int op)
                 break;
             case TK_OR:
                 result = lhs || rhs;
+                break;
+            case TK_SHL:
+                result = lhs << rhs;
+                break;
+            case TK_SHR:
+                result = lhs >> rhs;
                 break;
             default:
                 assert(false);
@@ -326,6 +333,12 @@ static void run_function(Runtime* R, Function* fn)
                 break;
             case OP_DIV:
                 run_binop(R, '/');
+                break;
+            case OP_SHL:
+                run_binop(R, TK_SHL);
+                break;
+            case OP_SHR:
+                run_binop(R, TK_SHR);
                 break;
             case OP_ADD1:
                 lint = tolong(R, -1);

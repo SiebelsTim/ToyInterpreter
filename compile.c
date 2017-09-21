@@ -190,6 +190,12 @@ static void compile_binop(Function* fn, AST* ast)
         case '*':
             emit(fn, OP_MUL);
             break;
+        case TK_SHL:
+            emit(fn, OP_SHL);
+            break;
+        case TK_SHR:
+            emit(fn, OP_SHR);
+            break;
         default:
             emit(fn, OP_BIN);
             emitraw(fn, ast->val.lint);

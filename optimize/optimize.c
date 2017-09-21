@@ -168,7 +168,7 @@ static size_t remove_duplicates(Instruction** array, size_t size)
 
 static Block* identify_basic_blocks(Function* fn)
 {
-    size_t capacity = 5;
+    size_t capacity = 4;
     size_t size = 0;
     Instruction** leaders = calloc(capacity, sizeof(*leaders));
     Instruction* ins = code_to_instructions(fn);

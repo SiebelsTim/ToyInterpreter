@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include "lex.h"
 
+
 static char* resize_str(char* str, size_t previous_size, size_t new_size)
 {
     assert(new_size > previous_size);
@@ -224,6 +225,16 @@ int lex_num(State* S)
     return TK_LONG;
 }
 
+#define LEX_TWICE(current, expected, TOKEN)                                    \
+    if ((current) == (expected)) {                                             \
+        if ((expected) == get_next_char(S)) {                                  \
+            get_next_char(S);                                                  \
+            return TOKEN;                                                      \
+        } else {                                                               \
+            return (expected);                                                 \
+        }                                                                      \
+    }
+
 int get_token(State* S)
 {
     if (S->lexchar == EOF) {
@@ -281,55 +292,27 @@ int get_token(State* S)
         return lex_num(S);
     }
 
-    switch (c) {
-        case '&':
-            if ('&' == get_next_char(S)) {
-                get_next_char(S);
-                return TK_AND;
-            } else {
-                return '&';
-            }
-        case '|':
-            if ('|' ==get_next_char(S)) {
-                get_next_char(S);
-                return TK_OR;
-            } else {
-                return '|';
-            }
-        case '=':
-            if ('=' == get_next_char(S)) {
-                get_next_char(S);
-                return TK_EQ;
-            } else {
-                return '=';
-            }
-        case '+':
-            if ('+' == get_next_char(S)) {
-                get_next_char(S);
-                return TK_PLUSPLUS;
-            } else {
-                return '+';
-            }
-        case '-':
-            if ('-' == get_next_char(S)) {
-                get_next_char(S);
-                return TK_MINUSMINUS;
-            } else {
-                return '-';
-            }
-        case '/':
-            if ('/' == get_next_char(S)) {
-                while (get_next_char(S) != '\n')
-                    ;
-                S->lineno++;
-                return get_token(S);
-            } else {
-                return '/';
-            }
-        default:
-            get_next_char(S);
-            return c;
+    LEX_TWICE(c, '&', TK_AND);
+    LEX_TWICE(c, '|', TK_OR);
+    LEX_TWICE(c, '=', TK_EQ);
+    LEX_TWICE(c, '+', TK_PLUSPLUS);
+    LEX_TWICE(c, '-', TK_MINUSMINUS);
+    LEX_TWICE(c, '<', TK_SHL);
+    LEX_TWICE(c, '>', TK_SHR);
+
+    if (c == '/') {
+        if ('/' == get_next_char(S)) {
+            while (get_next_char(S) != '\n')
+                ;
+            S->lineno++;
+            return get_token(S);
+        } else {
+            return '/';
+        }
     }
+
+    get_next_char(S);
+    return c;
 }
 
 State* new_state(FILE* file)
@@ -388,7 +371,11 @@ static char* tokennames[] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, // Ends with 255
 
     "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "IF", "ELSE",
-    "TRUE", "FALSE", "VAR", "AND", "OR", "EQ", "HTML", "WHILE", "FOR", "++", "--", "END"
+    "TRUE", "FALSE", "VAR",
+    "AND", "OR", "EQ",
+    "WHILE", "FOR",
+    "++", "--", "<<", ">>",
+    "HTML", "END"
 };
 
 char* get_token_name(int tok)
