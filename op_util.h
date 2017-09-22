@@ -3,7 +3,7 @@
 
 #include "compile.h"
 
-bool is_push_op(Operator op)
+static inline bool is_push_op(Operator op)
 {
     switch (op) {
         case OP_STR:
@@ -34,17 +34,17 @@ bool is_push_op(Operator op)
     return false;
 }
 
-bool affects_stack(Operator op)
+static inline bool affects_stack(Operator op)
 {
     return op != OP_JMP && op != OP_NOP;
 }
 
-bool is_jmp(Operator op)
+static inline bool is_jmp(Operator op)
 {
     return op == OP_JMP || op == OP_JMPZ;
 }
 
-bool is_immediate(Operator op)
+static inline bool is_immediate(Operator op)
 {
     switch (op) {
         case OP_STR:
@@ -72,7 +72,7 @@ bool is_immediate(Operator op)
     }
 }
 
-size_t op_len(Operator op)
+static inline size_t op_len(Operator op)
 {
     switch (op) {
         case OP_STR:
@@ -89,7 +89,7 @@ size_t op_len(Operator op)
     }
 }
 
-void swap_adjacent_ops(Operator* op1, Operator* op2)
+static inline void swap_adjacent_ops(Operator* op1, Operator* op2)
 {
     size_t len1 = op_len(*op1);
     size_t len2 = op_len(*op2);
@@ -115,7 +115,7 @@ void swap_adjacent_ops(Operator* op1, Operator* op2)
 }
 
 
-void insert_nop(Operator* op)
+static inline void insert_nop(Operator* op)
 {
     size_t len = op_len(*op);
     while (len--) {
