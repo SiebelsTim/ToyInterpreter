@@ -181,6 +181,10 @@ static AST* parse_primary(State* S)
             return NULL;
         }
     }
+    if (accept(S, '!')) {
+        ret = EXP1(NOTOP, parse_expr(S));
+        return ret;
+    }
 
     AST* varexpr = NULL;
     if ((varexpr = parse_varexpr(S)) != NULL) {
@@ -252,6 +256,14 @@ static AST* parse_expr(State* S)
     if (accept(S, '>')) {
         ret = EXP2(BINOP, parse_expr(S), ret);
         ret->val.lint = '<';
+    }
+    if (accept(S, TK_LTEQ)) {
+        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret->val.lint = TK_LTEQ;
+    }
+    if (accept(S, TK_GTEQ)) {
+        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret->val.lint = TK_GTEQ;
     }
 
     if (accept(S, TK_PLUSPLUS)) {

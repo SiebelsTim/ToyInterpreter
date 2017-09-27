@@ -22,6 +22,8 @@ typedef enum TOKEN {
     TK_AND,
     TK_OR,
     TK_EQ,
+    TK_LTEQ,
+    TK_GTEQ,
 
     TK_WHILE,
     TK_FOR,

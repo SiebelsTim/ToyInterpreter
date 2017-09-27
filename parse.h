@@ -15,6 +15,7 @@
            ENUM_EL(BINOP,)       \
            ENUM_EL(POSTFIXOP,)   \
            ENUM_EL(PREFIXOP,)    \
+           ENUM_EL(NOTOP,)       \
            ENUM_EL(LONGEXPR,)    \
            ENUM_EL(VAREXPR,)     \
            ENUM_EL(ASSIGNMENTEXPR,) \

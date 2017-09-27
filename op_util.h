@@ -11,6 +11,9 @@ static inline bool is_push_op(Operator op)
         case OP_TRUE:
         case OP_FALSE:
         case OP_BIN:
+        case OP_LTE:
+        case OP_GTE:
+        case OP_NOT:
         case OP_SUB:
         case OP_ADD:
         case OP_ADD1:
@@ -55,6 +58,9 @@ static inline bool is_immediate(Operator op)
         case OP_INVALID:
         case OP_ECHO:
         case OP_BIN:
+        case OP_NOT:
+        case OP_LTE:
+        case OP_GTE:
         case OP_SUB:
         case OP_ADD:
         case OP_ADD1:

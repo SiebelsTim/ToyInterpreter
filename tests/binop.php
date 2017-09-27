@@ -30,3 +30,20 @@ if (1 == 2)
 if (42 == 21*2) {
   echo "EXECUTED\n";
 }
+
+if (1 < 2) {
+  echo "EXECUTED\n";
+}
+
+if (1 > 2) {
+  echo "NOT EXECUTED\n";
+}
+
+
+if (1 <= 2) {
+  echo "EXECUTED\n";
+}
+
+if (1 >= 2) {
+  echo "NOT EXECUTED\n";
+}

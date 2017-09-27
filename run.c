@@ -234,7 +234,8 @@ static void run_binop(Runtime* R, int op)
     }
 
     if (op == '+' || op == '-' || op == '*' || op == '/' || op == '<' ||
-        op == TK_AND || op == TK_OR || op == TK_SHL || op == TK_SHR) {
+        op == TK_AND || op == TK_OR || op == TK_SHL || op == TK_SHR ||
+        op == TK_LTEQ || op == TK_GTEQ) {
         int64_t rhs = tolong(R, -1);
         pop(R);
         int64_t lhs = tolong(R, -1);
@@ -268,6 +269,12 @@ static void run_binop(Runtime* R, int op)
             case TK_SHR:
                 result = lhs >> rhs;
                 break;
+            case TK_LTEQ:
+                result = lhs <= rhs;
+                break;
+            case TK_GTEQ:
+                result = lhs >= rhs;
+                break;
             default:
                 assert(false);
         }
@@ -286,6 +293,12 @@ static void run_binop(Runtime* R, int op)
     runtimeerror("Undefined BINOP");
 }
 
+static void run_notop(Runtime* R)
+{
+    int64_t lint = tolong(R, -1);
+    pop(R);
+    pushlong(R, !lint);
+}
 
 static void run_assignmentexpr(Runtime* R, Function* fn)
 {
@@ -321,6 +334,15 @@ static void run_function(Runtime* R, Function* fn)
                 break;
             case OP_BIN:
                 run_binop(R, *fn->ip++);
+                break;
+            case OP_LTE:
+                run_binop(R, TK_LTEQ);
+                break;
+            case OP_GTE:
+                run_binop(R, TK_GTEQ);
+                break;
+            case OP_NOT:
+                run_notop(R);
                 break;
             case OP_ADD:
                 run_binop(R, '+');

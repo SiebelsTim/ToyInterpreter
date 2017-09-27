@@ -322,6 +322,24 @@ static void remove_jmpz_always_true(Function* fn, Block* blk)
     END_ITERATE_BLOCK
 }
 
+static void remove_not_not(Function* fn, Block* blk)
+{
+    UNUSED(fn);
+    // Last stack op
+    Operator* last = NULL;
+    ITERATE_BLOCK(blk)
+    {
+        if (*current == OP_NOT && *last == OP_NOT) {
+            insert_nop(last);
+            insert_nop(current);
+        }
+
+        if (affects_stack(*current)) {
+            last = current;
+        }
+    }
+    END_ITERATE_BLOCK
+}
 
 static bool jmplist_contains(Operator** jmps, size_t size, RelAddr rel_addr)
 {
@@ -381,7 +399,8 @@ static Optimizer localoptimizations[] = {
         remove_add0,
         remove_mul_pow2,
         remove_lookup_assign,
-        remove_jmpz_always_true
+        remove_jmpz_always_true,
+        remove_not_not
 };
 
 static GlobalOptimizer globaloptimizations[] = {

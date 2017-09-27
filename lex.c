@@ -230,9 +230,8 @@ int lex_num(State* S)
         if ((expected) == get_next_char(S)) {                                  \
             get_next_char(S);                                                  \
             return TOKEN;                                                      \
-        } else {                                                               \
+        } else                                                                 \
             return (expected);                                                 \
-        }                                                                      \
     }
 
 int get_token(State* S)
@@ -297,8 +296,32 @@ int get_token(State* S)
     LEX_TWICE(c, '=', TK_EQ);
     LEX_TWICE(c, '+', TK_PLUSPLUS);
     LEX_TWICE(c, '-', TK_MINUSMINUS);
-    LEX_TWICE(c, '<', TK_SHL);
-    LEX_TWICE(c, '>', TK_SHR);
+
+    if (c == '<') {
+        c = get_next_char(S);
+        if (c == '=') {
+            get_next_char(S);
+            return TK_LTEQ;
+        } else if (c == '<') {
+            get_next_char(S);
+            return TK_SHL;
+        }
+
+        return '<';
+    }
+
+    if (c == '>') {
+        c = get_next_char(S);
+        if (c == '=') {
+            get_next_char(S);
+            return TK_GTEQ;
+        } else if (c == '>') {
+            get_next_char(S);
+            return TK_SHR;
+        }
+
+        return '>';
+    }
 
     if (c == '/') {
         if ('/' == get_next_char(S)) {
@@ -372,7 +395,7 @@ static char* tokennames[] = {
 
     "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "IF", "ELSE",
     "TRUE", "FALSE", "VAR",
-    "AND", "OR", "EQ",
+    "AND", "OR", "EQ", "LTEQ", "GTEQ",
     "WHILE", "FOR",
     "++", "--", "<<", ">>",
     "HTML", "END"

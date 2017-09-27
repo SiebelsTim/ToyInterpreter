@@ -198,6 +198,12 @@ static void compile_binop(Function* fn, AST* ast)
         case TK_SHR:
             emit(fn, OP_SHR);
             break;
+        case TK_LTEQ:
+            emit(fn, OP_LTE);
+            break;
+        case TK_GTEQ:
+            emit(fn, OP_GTE);
+            break;
         default:
             emit(fn, OP_BIN);
             emitraw(fn, ast->val.lint);
@@ -287,6 +293,10 @@ Function* compile(Function* fn, AST* ast)
             break;
         case POSTFIXOP:
             compile_postfixop(fn, ast);
+            break;
+        case NOTOP:
+            compile(fn, ast->node1);
+            emit(fn, OP_NOT);
             break;
         case LONGEXPR:
             emitlong(fn, ast->val.lint);
