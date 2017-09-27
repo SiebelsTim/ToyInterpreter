@@ -30,6 +30,7 @@
 DECLARE_ENUM(Operator, ENUM_OPERATOR);
 
 typedef struct Function {
+    char* name;
     Operator* ip;
     size_t codesize;
     size_t codecapacity;

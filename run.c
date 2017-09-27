@@ -379,14 +379,13 @@ void run_file(FILE* file) {
     AST* ast = parse(file);
 
     Function* fn = create_function();
+    fn->name = "<pseudomain>";
     compile(fn, ast);
 
     Runtime* R = create_runtime();
-//    puts("BEFORE\n");
-//    print_code(fn);
+    print_code(fn);
     optimize(fn);
-//    puts("AFTER\n");
-//    print_code(fn);
+    print_code(fn);
     run_function(R, fn);
     destroy_runtime(R);
 

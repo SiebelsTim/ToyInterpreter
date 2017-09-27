@@ -13,6 +13,7 @@ Function* create_function()
 {
     Function* ret = malloc(sizeof(Function));
 
+    ret->name = "<unnamed>";
     ret->codesize = 0;
     ret->codecapacity = 8;
     ret->code = calloc(sizeof(*ret->code), ret->codecapacity);
@@ -330,7 +331,7 @@ static char* escaped_str(const char* str)
 {
     _Static_assert(arrcount(escape_chars) == 0x1f, "Not enough escape chars");
     size_t pos = 0;
-    char* ret = malloc(strlen(str) * sizeof(char) * 2);
+    char* ret = malloc((strlen(str) * 2 + 1) * sizeof(char));
     while (*str != '\0') {
         if (*str < 0x20 && escape_chars[(unsigned char)*str] != 0) { // First 0x20 chars are special chars
             ret[pos++] = '\\';
@@ -349,23 +350,24 @@ void print_code(Function* fn)
     Operator* prev_ip = fn->ip;
     fn->ip = fn->code;
     int64_t lint;
+    fprintf(stderr, "Function: %s\n-----------------------\n", fn->name);
     while ((size_t)(fn->ip - fn->code) < fn->codesize) {
-        printf("%02lx: ", fn->ip - fn->code);
+        fprintf(stderr, "%02lx: ", fn->ip - fn->code);
         Operator op = *fn->ip;
         const char* opname = get_Operator_name(op);
         size_t chars_written = 0;
         unsigned char bytes[3] = {op, 0, 0}; // We have three bytes maximum per opcode
         if (!opname) {
-            printf("Unexpected op: %d", op);
+            fprintf(stderr, "Unexpected op: %d", op);
         } else {
-            chars_written += printf("%s ", opname);
+            chars_written += fprintf(stderr, "%s ", opname);
         }
         switch (*fn->ip++) {
             case OP_STR:
                 assert(*fn->ip < fn->strlen);
                 bytes[1] = *fn->ip;
                 char* escaped_string = escaped_str(fn->strs[*fn->ip++]);
-                chars_written += printf("\"%s\"", escaped_string);
+                chars_written += fprintf(stderr, "\"%s\"", escaped_string);
                 free(escaped_string);
                 break;
             case OP_LONG:
@@ -373,40 +375,41 @@ void print_code(Function* fn)
                 lint = *fn->ip++ << 4;
                 bytes[2] = *fn->ip;
                 lint |= *fn->ip++;
-                chars_written += printf("%" PRId64, lint);
+                chars_written += fprintf(stderr, "%" PRId64, lint);
                 break;
             case OP_BIN:
                 bytes[1] = *fn->ip;
-                chars_written += printf("%s", get_token_name(*fn->ip++));
+                chars_written += fprintf(stderr, "%s", get_token_name(*fn->ip++));
                 break;
             case OP_ASSIGN:
                 bytes[1] = *fn->ip;
                 assert(*fn->ip < fn->strlen);
-                chars_written += printf("$%s = pop()", fn->strs[*fn->ip++]);
+                chars_written += fprintf(stderr, "$%s = pop()", fn->strs[*fn->ip++]);
                 break;
             case OP_LOOKUP:
                 bytes[1] = *fn->ip;
                 assert(*fn->ip < fn->strlen);
-                chars_written += printf("$%s", fn->strs[*fn->ip++]);
+                chars_written += fprintf(stderr, "$%s", fn->strs[*fn->ip++]);
                 break;
             case OP_JMP:
             case OP_JMPZ:
                 bytes[1] = *fn->ip;
-                chars_written += printf(":%02lx", (unsigned long)*fn->ip++);
+                chars_written += fprintf(stderr, ":%02lx", (unsigned long)*fn->ip++);
                 break;
 
             default:
                 break;
         }
         for (size_t i = 0; i < 40 - chars_written; ++i) {
-            putchar(' ');
+            fputc(' ', stderr);
         }
-        putchar(';');
+        fputc(';', stderr);
         for (size_t i = 0; i < op_len(op); ++i) {
-            printf(" %02x", bytes[i]);
+            fprintf(stderr, " %02x", bytes[i]);
         }
-        puts("");
+        fprintf(stderr, "\n");
     }
 
+    fprintf(stderr, "\n\n");
     fn->ip = prev_ip;
 }
