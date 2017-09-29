@@ -123,7 +123,7 @@ static void addstring(Function* fn, char* str)
 
 static void compile_blockstmt(Function* fn, AST* ast)
 {
-    assert(ast->type == BLOCKSTMT);
+    assert(ast->type == AST_BLOCK);
     AST* current = ast->next;
     while (current) {
         compile(fn, current);
@@ -133,7 +133,7 @@ static void compile_blockstmt(Function* fn, AST* ast)
 
 static void compile_echostmt(Function* fn, AST* ast)
 {
-    assert(ast->type == ECHOSTMT);
+    assert(ast->type == AST_ECHO);
     assert(ast->node1);
     compile(fn, ast->node1);
     emit(fn, OP_ECHO);
@@ -141,7 +141,7 @@ static void compile_echostmt(Function* fn, AST* ast)
 
 static void compile_assignmentexpr(Function* fn, AST* ast)
 {
-    assert(ast->type == ASSIGNMENTEXPR);
+    assert(ast->type == AST_ASSIGNMENT);
     assert(ast->node1);
     assert(ast->val.str);
     compile(fn, ast->node1);
@@ -152,7 +152,7 @@ static void compile_assignmentexpr(Function* fn, AST* ast)
 
 static void compile_ifstmt(Function* fn, AST* ast)
 {
-    assert(ast->type == IFSTMT);
+    assert(ast->type == AST_IF);
     assert(ast->node1 && ast->node2);
     compile(fn, ast->node1);
     emit(fn, OP_JMPZ); // Jump over code if false
@@ -175,7 +175,7 @@ static void compile_ifstmt(Function* fn, AST* ast)
 
 static void compile_binop(Function* fn, AST* ast)
 {
-    assert(ast->type == BINOP);
+    assert(ast->type == AST_BINOP);
     assert(ast->node1 && ast->node2);
     compile(fn, ast->node1);
     compile(fn, ast->node2);
@@ -213,7 +213,7 @@ static void compile_binop(Function* fn, AST* ast)
 
 static void compile_prefixop(Function* fn, AST* ast)
 {
-    assert(ast->node1->type == VAREXPR);
+    assert(ast->node1->type == AST_VAR);
     compile(fn, ast->node1);
     int nameidx = fn->code[fn->codesize - 1];
     assert(nameidx < fn->strlen);
@@ -223,7 +223,7 @@ static void compile_prefixop(Function* fn, AST* ast)
 }
 static void compile_postfixop(Function* fn, AST* ast)
 {
-    assert(ast->node1->type == VAREXPR);
+    assert(ast->node1->type == AST_VAR);
     compile(fn, ast->node1);
     int nameidx = fn->code[fn->codesize - 1];
     assert(nameidx < fn->strlen);
@@ -235,7 +235,7 @@ static void compile_postfixop(Function* fn, AST* ast)
 
 static void compile_whilestmt(Function* fn, AST* ast)
 {
-    assert(ast->type == WHILESTMT);
+    assert(ast->type == AST_WHILE);
     assert(ast->node1 && ast->node2);
     size_t while_start = fn->codesize;
     compile(fn, ast->node1);
@@ -251,7 +251,7 @@ static void compile_whilestmt(Function* fn, AST* ast)
 
 
 static void compile_forstmt(Function* fn, AST* ast) {
-    assert(ast->type == FORSTMT);
+    assert(ast->type == AST_FOR);
     assert(ast->node1 && ast->node2 && ast->node3 && ast->node4);
     compile(fn, ast->node1); // Init
     size_t for_start = fn->codesize;
@@ -270,60 +270,60 @@ static void compile_forstmt(Function* fn, AST* ast) {
 Function* compile(Function* fn, AST* ast)
 {
     switch (ast->type) {
-        case BLOCKSTMT:
+        case AST_BLOCK:
             compile_blockstmt(fn, ast);
             break;
-        case ECHOSTMT:
+        case AST_ECHO:
             compile_echostmt(fn, ast);
             break;
-        case IFSTMT:
+        case AST_IF:
             compile_ifstmt(fn, ast);
             break;
-        case STRINGEXPR:
+        case AST_STRING:
             emit(fn, OP_STR);
             assert(ast->val.str);
             addstring(fn, ast->val.str);
             ast->val.str = NULL;
             break;
-        case BINOP:
+        case AST_BINOP:
             compile_binop(fn, ast);
             break;
-        case PREFIXOP:
+        case AST_PREFIXOP:
             compile_prefixop(fn, ast);
             break;
-        case POSTFIXOP:
+        case AST_POSTFIXOP:
             compile_postfixop(fn, ast);
             break;
-        case NOTOP:
+        case AST_NOTOP:
             compile(fn, ast->node1);
             emit(fn, OP_NOT);
             break;
-        case LONGEXPR:
+        case AST_LONG:
             emitlong(fn, ast->val.lint);
             break;
-        case NULLEXPR:
+        case AST_NULL:
             emit(fn, OP_NULL);
             break;
-        case VAREXPR:
+        case AST_VAR:
             emit(fn, OP_LOOKUP);
             assert(ast->val.str);
             addstring(fn, ast->val.str);
             ast->val.str = NULL;
             break;
-        case ASSIGNMENTEXPR:
+        case AST_ASSIGNMENT:
             compile_assignmentexpr(fn, ast);
             break;
-        case HTMLEXPR:
+        case AST_HTML:
             emit(fn, OP_STR);
             assert(ast->val.str);
             addstring(fn, ast->val.str);
             ast->val.str = NULL;
             emit(fn, OP_ECHO);
             break;
-        case WHILESTMT:
+        case AST_WHILE:
             compile_whilestmt(fn, ast);
             break;
-        case FORSTMT:
+        case AST_FOR:
             compile_forstmt(fn, ast);
             break;
         default:

@@ -6,10 +6,10 @@
 #include "enum-util.h"
 
 #define ENUM_VARIANTTYPE(ELEMENT) \
-    ELEMENT(UNDEFINED, =0)         \
-    ELEMENT(STRING,)               \
-    ELEMENT(LONG,)                 \
-    ELEMENT(NULLTYPE,)
+    ELEMENT(TYPE_UNDEF, =0)         \
+    ELEMENT(TYPE_STRING,)               \
+    ELEMENT(TYPE_LONG,)                 \
+    ELEMENT(TYPE_NULL,)
 
 DECLARE_ENUM(VARIANTTYPE, ENUM_VARIANTTYPE);
 

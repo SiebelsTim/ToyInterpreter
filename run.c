@@ -14,7 +14,7 @@
 Variant cpy_var(Variant var)
 {
     Variant ret = var;
-    if (ret.type == STRING) {
+    if (ret.type == TYPE_STRING) {
         ret.u.str = strdup(var.u.str);
     }
 
@@ -23,7 +23,7 @@ Variant cpy_var(Variant var)
 
 void free_var(Variant var)
 {
-    if (var.type == STRING) {
+    if (var.type == TYPE_STRING) {
         free(var.u.str);
     }
 }
@@ -61,7 +61,7 @@ static Runtime* create_runtime()
 static void destroy_runtime(Runtime* R)
 {
     for (int i = 0; i < (int) R->stacksize; ++i) {
-        if (stackidx(R, i)->type == STRING) {
+        if (stackidx(R, i)->type == TYPE_STRING) {
             free(stackidx(R, i)->u.str);
         }
     }
@@ -92,7 +92,7 @@ static inline void popn(Runtime *R, size_t count) {
     for (size_t i = 0; i < count; ++i) {
         Variant* ret = top(R);
 
-        if (ret->type == STRING) {
+        if (ret->type == TYPE_STRING) {
             free(ret->u.str);
         }
 
@@ -108,7 +108,7 @@ static inline void pop(Runtime* R) {
 static inline void pushstr(Runtime* R, char* str)
 {
     Variant var;
-    var.type = STRING;
+    var.type = TYPE_STRING;
     var.u.str = str;
     push(R, var);
 }
@@ -117,7 +117,7 @@ static inline void pushstr(Runtime* R, char* str)
 static inline void pushlong(Runtime* R, int64_t n)
 {
     Variant var;
-    var.type = LONG;
+    var.type = TYPE_LONG;
     var.u.lint = n;
     push(R, var);
 }
@@ -125,7 +125,7 @@ static inline void pushlong(Runtime* R, int64_t n)
 static inline void pushbool(Runtime* R, bool b)
 {
     Variant var;
-    var.type = LONG;
+    var.type = TYPE_LONG;
     var.u.lint = b;
     push(R, var);
 }
@@ -133,7 +133,7 @@ static inline void pushbool(Runtime* R, bool b)
 static inline void pushnull(Runtime* R)
 {
     Variant var;
-    var.type = NULLTYPE;
+    var.type = TYPE_NULL;
     push(R, var);
 }
 
@@ -142,16 +142,16 @@ static char* tostring(Runtime* R, int idx)
     char* buf;
     Variant* var = stackidx(R, idx);
     switch (var->type) {
-        case STRING:
+        case TYPE_STRING:
             assert(var->u.str);
             return strdup(var->u.str);
-        case LONG:
+        case TYPE_LONG:
             buf = malloc(sizeof(char) * 20); // Let this be "enough"
             snprintf(buf, sizeof(char) * 20, "%" PRId64, var->u.lint);
             return buf;
-        case UNDEFINED:
+        case TYPE_UNDEF:
             return strdup("<UNDEFINED>");
-        case NULLTYPE:
+        case TYPE_NULL:
             return strdup("<null>");
     }
 
@@ -163,16 +163,16 @@ static int64_t tolong(Runtime* R, int idx)
 {
     Variant* var = stackidx(R, idx);
     switch (var->type) {
-        case UNDEFINED:
+        case TYPE_UNDEF:
             return 0;
-        case STRING:
+        case TYPE_STRING:
             for (int i = 0; var->u.str[i] != 0; ++i) {
                 if (var->u.str[i] != '0' && var->u.str[i] != ' ') {
                     return 1;
                 }
             }
             return 0;
-        case LONG:
+        case TYPE_LONG:
             return var->u.lint;
         default:
             runtimeerror("tolong for undefined value.");
@@ -210,21 +210,24 @@ static bool compare_equal(Variant* lhs, Variant* rhs)
 {
     bool result = false;
     switch (lhs->type) {
-        case UNDEFINED:
-            result = rhs->type == UNDEFINED;
+        case TYPE_UNDEF:
+            result = rhs->type == TYPE_UNDEF;
             break;
-        case STRING:
-            if (rhs->type == STRING) {
+        case TYPE_NULL:
+            result = rhs->type == TYPE_NULL;
+            break;
+        case TYPE_STRING:
+            if (rhs->type == TYPE_STRING) {
                 result = strcmp(lhs->u.str, rhs->u.str) == 0;
-            } else if (rhs->type == LONG) {
+            } else if (rhs->type == TYPE_LONG) {
                 long long ll = strtoll(lhs->u.str, NULL, 10);
                 int64_t lint = (int64_t) ll;
                 assert(ll == lint);
                 result = lint == rhs->u.lint;
             }
             break;
-        case LONG:
-            if (rhs->type == LONG) {
+        case TYPE_LONG:
+            if (rhs->type == TYPE_LONG) {
                 result = lhs->u.lint == rhs->u.lint;
             } else {
                 result = compare_equal(rhs, lhs);
@@ -299,7 +302,7 @@ static void run_binop(Runtime* R, int op)
         return;
     }
 
-    runtimeerror("Undefined BINOP");
+    runtimeerror("Undefined AST_BINOP");
 }
 
 static void run_notop(Runtime* R)
@@ -435,14 +438,17 @@ void print_stack(Runtime* R)
     for (int i = 0; i < (int) R->stacksize; ++i) {
         Variant* var = stackidx(R, i);
         switch (var->type) {
-            case UNDEFINED:
+            case TYPE_UNDEF:
                 printf("#%d UNDEFINED", i);
                 break;
-            case STRING:
+            case TYPE_STRING:
                 printf("#%d STRING: %s", i, var->u.str);
                 break;
-            case LONG:
+            case TYPE_LONG:
                 printf("#%d LONG: %" PRId64,i, var->u.lint);
+                break;
+            case TYPE_NULL:
+                printf("#%d NULL", i);
                 break;
         }
         puts("");

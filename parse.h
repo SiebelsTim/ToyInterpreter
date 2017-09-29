@@ -6,21 +6,21 @@
 #include "enum-util.h"
 
 #define ENUM_ASTTYPE(ENUM_EL)   \
-           ENUM_EL(BLOCKSTMT, =0)   \
-           ENUM_EL(ECHOSTMT,)    \
-           ENUM_EL(IFSTMT,)      \
-           ENUM_EL(WHILESTMT,)   \
-           ENUM_EL(FORSTMT,)     \
-           ENUM_EL(STRINGEXPR,)  \
-           ENUM_EL(BINOP,)       \
-           ENUM_EL(POSTFIXOP,)   \
-           ENUM_EL(PREFIXOP,)    \
-           ENUM_EL(NOTOP,)       \
-           ENUM_EL(LONGEXPR,)    \
-           ENUM_EL(NULLEXPR,)    \
-           ENUM_EL(VAREXPR,)     \
-           ENUM_EL(ASSIGNMENTEXPR,) \
-           ENUM_EL(HTMLEXPR,)    \
+           ENUM_EL(AST_BLOCK, =0)   \
+           ENUM_EL(AST_ECHO,)    \
+           ENUM_EL(AST_IF,)      \
+           ENUM_EL(AST_WHILE,)   \
+           ENUM_EL(AST_FOR,)     \
+           ENUM_EL(AST_STRING,)  \
+           ENUM_EL(AST_BINOP,)       \
+           ENUM_EL(AST_POSTFIXOP,)   \
+           ENUM_EL(AST_PREFIXOP,)    \
+           ENUM_EL(AST_NOTOP,)       \
+           ENUM_EL(AST_LONG,)    \
+           ENUM_EL(AST_NULL,)    \
+           ENUM_EL(AST_VAR,)     \
+           ENUM_EL(AST_ASSIGNMENT,) \
+           ENUM_EL(AST_HTML,)    \
 
 DECLARE_ENUM(ASTTYPE, ENUM_ASTTYPE);
 

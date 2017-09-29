@@ -24,6 +24,7 @@ static inline bool is_push_op(Operator op)
         case OP_LOOKUP:
         case OP_SHL:
         case OP_SHR:
+        case OP_NULL:
             return true;
         case OP_JMP:
         case OP_JMPZ:
@@ -54,6 +55,7 @@ static inline bool is_immediate(Operator op)
         case OP_LONG:
         case OP_TRUE:
         case OP_FALSE:
+        case OP_NULL:
             return true;
         case OP_INVALID:
         case OP_ECHO:

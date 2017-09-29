@@ -78,7 +78,7 @@ static AST* new_ast(ASTTYPE type, AST* one, AST* two, AST* three, AST* four)
 static AST* block_append(AST* block, AST* ast)
 {
     assert(block);
-    assert(block->type == BLOCKSTMT);
+    assert(block->type == AST_BLOCK);
     AST* current = block;
     while (current->next) {
         current = current->next;
@@ -121,11 +121,11 @@ static AST* parse_varexpr(State* S)
 {
     if (S->token == TK_VAR) {
         AST* ret;
-        ret = EXP0(VAREXPR);
+        ret = EXP0(AST_VAR);
         ret->val.str = overtake_str(S);
         expect(S, TK_VAR); // Skip
         if (accept(S, '=')) {
-            ret->type = ASSIGNMENTEXPR;
+            ret->type = AST_ASSIGNMENT;
             ret->node1 = parse_expr(S);
         }
         return ret;
@@ -138,35 +138,35 @@ static AST* parse_primary(State* S)
 {
     AST* ret;
     if (S->token == TK_STRING) {
-        ret = EXP0(STRINGEXPR);
+        ret = EXP0(AST_STRING);
         ret->val.str = overtake_str(S);
         expect(S, TK_STRING);
         return ret;
     }
 
     if (S->token == TK_LONG) {
-        ret = EXP0(LONGEXPR);
+        ret = EXP0(AST_LONG);
         ret->val.lint = S->u.lint;
         expect(S, TK_LONG);
         return ret;
     }
 
     if (accept(S, TK_TRUE)) {
-        ret = EXP0(LONGEXPR);
+        ret = EXP0(AST_LONG);
         ret->val.lint = 1;
         return ret;
     }
     if (accept(S, TK_FALSE)) {
-        ret = EXP0(LONGEXPR);
+        ret = EXP0(AST_LONG);
         ret->val.lint = 0;
         return ret;
     }
     if (accept(S, TK_NULL)) {
-        return EXP0(NULLEXPR);
+        return EXP0(AST_NULL);
     }
     if (accept(S, TK_PLUSPLUS)) {
         if (S->token == TK_VAR) {
-            ret = EXP1(PREFIXOP, parse_varexpr(S));
+            ret = EXP1(AST_PREFIXOP, parse_varexpr(S));
             ret->val.lint = '+';
             return ret;
         } else {
@@ -176,7 +176,7 @@ static AST* parse_primary(State* S)
     }
     if (accept(S, TK_MINUSMINUS)) {
         if (S->token == TK_VAR) {
-            ret = EXP1(PREFIXOP, parse_varexpr(S));
+            ret = EXP1(AST_PREFIXOP, parse_varexpr(S));
             ret->val.lint = '-';
             return ret;
         } else {
@@ -185,7 +185,7 @@ static AST* parse_primary(State* S)
         }
     }
     if (accept(S, '!')) {
-        ret = EXP1(NOTOP, parse_expr(S));
+        ret = EXP1(AST_NOTOP, parse_expr(S));
         return ret;
     }
 
@@ -211,70 +211,70 @@ static AST* parse_expr(State* S)
     AST* ret = parse_primary(S);
 
     if (accept(S, '.')) {
-        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, ret, parse_expr(S));
         ret->val.lint = '.';
     }
     if (accept(S, '+')) {
-        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, ret, parse_expr(S));
         ret->val.lint = '+';
     }
     if (accept(S, '-')) {
-        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, ret, parse_expr(S));
         ret->val.lint = '-';
     }
     if (accept(S, '*')) {
-        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, ret, parse_expr(S));
         ret->val.lint = '*';
     }
     if (accept(S, '/')) {
-        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, ret, parse_expr(S));
         ret->val.lint = '/';
     }
     if (accept(S, TK_SHL)) {
-        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, ret, parse_expr(S));
         ret->val.lint = TK_SHL;
     }
     if (accept(S, TK_SHR)) {
-        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, ret, parse_expr(S));
         ret->val.lint = TK_SHR;
     }
 
     if (accept(S, TK_AND)) {
-        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, ret, parse_expr(S));
         ret->val.lint = TK_AND;
     }
     if (accept(S, TK_OR)) {
-        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, ret, parse_expr(S));
         ret->val.lint = TK_OR;
     }
 
     if (accept(S, TK_EQ)) {
-        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, ret, parse_expr(S));
         ret->val.lint = TK_EQ;
     }
     if (accept(S, '<')) {
-        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, ret, parse_expr(S));
         ret->val.lint = '<';
     }
     if (accept(S, '>')) {
-        ret = EXP2(BINOP, parse_expr(S), ret);
+        ret = EXP2(AST_BINOP, parse_expr(S), ret);
         ret->val.lint = '<';
     }
     if (accept(S, TK_LTEQ)) {
-        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, ret, parse_expr(S));
         ret->val.lint = TK_LTEQ;
     }
     if (accept(S, TK_GTEQ)) {
-        ret = EXP2(BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, ret, parse_expr(S));
         ret->val.lint = TK_GTEQ;
     }
 
     if (accept(S, TK_PLUSPLUS)) {
-        ret = EXP1(POSTFIXOP, ret);
+        ret = EXP1(AST_POSTFIXOP, ret);
         ret->val.lint = '+';
     }
     if (accept(S, TK_MINUSMINUS)) {
-        ret = EXP1(POSTFIXOP, ret);
+        ret = EXP1(AST_POSTFIXOP, ret);
         ret->val.lint = '-';
     }
 
@@ -287,13 +287,13 @@ static AST* parse_echostmt(State* S)
 
     expect(S, ';');
 
-    AST* ret = EXP1(ECHOSTMT, expr);
+    AST* ret = EXP1(AST_ECHO, expr);
     return ret;
 }
 
 static AST* parse_blockstmt(State* S)
 {
-    AST* ret = EXP0(BLOCKSTMT);
+    AST* ret = EXP0(AST_BLOCK);
     while (S->token != '}') {
         block_append(ret, parse_stmt(S));
     }
@@ -315,7 +315,7 @@ static AST* parse_ifstmt(State* S)
         else_body = parse_stmt(S);
     }
 
-    AST* ret = EXP3(IFSTMT, expr, body, else_body);
+    AST* ret = EXP3(AST_IF, expr, body, else_body);
     return ret;
 }
 
@@ -327,7 +327,7 @@ static AST* parse_whilestmt(State* S)
 
     AST* body = parse_stmt(S);
 
-    return EXP2(WHILESTMT, expr, body);
+    return EXP2(AST_WHILE, expr, body);
 }
 
 static AST* parse_forstmt(State* S)
@@ -341,17 +341,17 @@ static AST* parse_forstmt(State* S)
     expect(S, ')');
 
     AST* body = parse_stmt(S);
-    return EXP4(FORSTMT, init, condition, post, body);
+    return EXP4(AST_FOR, init, condition, post, body);
 }
 
 AST* parse(FILE* file)
 {
     State* S = new_state(file);
-    AST* ret = EXP0(BLOCKSTMT);
+    AST* ret = EXP0(AST_BLOCK);
     get_next_token(S); // init
     while (S->token != TK_END) {
         if (S->token == TK_HTML) {
-            AST* html = EXP0(HTMLEXPR);
+            AST* html = EXP0(AST_HTML);
             html->val.str = S->u.string;
             block_append(ret, html);
         }
@@ -369,7 +369,7 @@ AST* parse(FILE* file)
 
 void destroy_ast(AST* ast)
 {
-    if (ast->type == STRINGEXPR || ast->type == VAREXPR || ast->type == ASSIGNMENTEXPR) {
+    if (ast->type == AST_STRING || ast->type == AST_VAR || ast->type == AST_ASSIGNMENT) {
         free(ast->val.str);
     }
     if (ast->next) {
@@ -404,15 +404,15 @@ void print_ast(AST* ast, int level)
     printf("%p %s: ", ast, get_ASTTYPE_name(ast->type));
 
     switch (ast->type) {
-        case STRINGEXPR:
-        case VAREXPR:
-        case ASSIGNMENTEXPR:
+        case AST_STRING:
+        case AST_VAR:
+        case AST_ASSIGNMENT:
             puts(ast->val.str);
             break;
-        case LONGEXPR:
+        case AST_LONG:
             printf("%" PRId64 "\n", ast->val.lint);
             break;
-        case BINOP:
+        case AST_BINOP:
             printf("%c\n", (char) ast->val.lint);
             break;
         default:
@@ -420,7 +420,7 @@ void print_ast(AST* ast, int level)
             break;
     }
 
-    if (ast->type == BLOCKSTMT) {
+    if (ast->type == AST_BLOCK) {
         while (ast->next) {
             print_ast(ast->next, level+1);
             ast = ast->next;

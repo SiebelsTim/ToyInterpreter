@@ -3,7 +3,7 @@
 #include "scope.h"
 #include "array-util.h"
 
-static const Variant undefined = {.type = UNDEFINED};
+static const Variant undefined = {.type = TYPE_UNDEF};
 
 Scope* create_scope()
 {
