@@ -136,6 +136,8 @@ static int lex_ident(State* S)
         ret = TK_TRUE;
     } else if (strcmp(str, "false") == 0) {
         ret = TK_FALSE;
+    } else if (strcmp(str, "null") == 0) {
+        ret = TK_NULL;
     } else if (strcmp(str, "while") == 0) {
         ret = TK_WHILE;
     } else if (strcmp(str, "for") == 0) {
@@ -394,7 +396,7 @@ static char* tokennames[] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, // Ends with 255
 
     "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "IF", "ELSE",
-    "TRUE", "FALSE", "VAR",
+    "TRUE", "FALSE", "NULL", "VAR",
     "AND", "OR", "EQ", "LTEQ", "GTEQ",
     "WHILE", "FOR",
     "++", "--", "<<", ">>",

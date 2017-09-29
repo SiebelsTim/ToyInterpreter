@@ -130,6 +130,13 @@ static inline void pushbool(Runtime* R, bool b)
     push(R, var);
 }
 
+static inline void pushnull(Runtime* R)
+{
+    Variant var;
+    var.type = NULLTYPE;
+    push(R, var);
+}
+
 static char* tostring(Runtime* R, int idx)
 {
     char* buf;
@@ -144,10 +151,12 @@ static char* tostring(Runtime* R, int idx)
             return buf;
         case UNDEFINED:
             return strdup("<UNDEFINED>");
+        case NULLTYPE:
+            return strdup("<null>");
     }
 
-    puts("May not reach end of tostring function.");
-    abort();
+    runtimeerror("Assertion failed: May not reach end of tostring function.");
+    return NULL;
 }
 
 static int64_t tolong(Runtime* R, int idx)
@@ -331,6 +340,9 @@ static void run_function(Runtime* R, Function* fn)
                 break;
             case OP_FALSE:
                 pushbool(R, 0);
+                break;
+            case OP_NULL:
+                pushnull(R);
                 break;
             case OP_BIN:
                 run_binop(R, *fn->ip++);

@@ -161,6 +161,9 @@ static AST* parse_primary(State* S)
         ret->val.lint = 0;
         return ret;
     }
+    if (accept(S, TK_NULL)) {
+        return EXP0(NULLEXPR);
+    }
     if (accept(S, TK_PLUSPLUS)) {
         if (S->token == TK_VAR) {
             ret = EXP1(PREFIXOP, parse_varexpr(S));

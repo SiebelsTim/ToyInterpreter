@@ -12,6 +12,7 @@
         ENUM_EL(OP_LONG,) \
         ENUM_EL(OP_TRUE,) \
         ENUM_EL(OP_FALSE,) \
+        ENUM_EL(OP_NULL,)  \
         ENUM_EL(OP_BIN,) \
         ENUM_EL(OP_LTE,)  \
         ENUM_EL(OP_GTE,)  \

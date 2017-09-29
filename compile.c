@@ -301,6 +301,9 @@ Function* compile(Function* fn, AST* ast)
         case LONGEXPR:
             emitlong(fn, ast->val.lint);
             break;
+        case NULLEXPR:
+            emit(fn, OP_NULL);
+            break;
         case VAREXPR:
             emit(fn, OP_LOOKUP);
             assert(ast->val.str);

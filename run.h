@@ -9,6 +9,7 @@
     ELEMENT(UNDEFINED, =0)         \
     ELEMENT(STRING,)               \
     ELEMENT(LONG,)                 \
+    ELEMENT(NULLTYPE,)
 
 DECLARE_ENUM(VARIANTTYPE, ENUM_VARIANTTYPE);
 

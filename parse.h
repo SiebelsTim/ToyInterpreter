@@ -17,6 +17,7 @@
            ENUM_EL(PREFIXOP,)    \
            ENUM_EL(NOTOP,)       \
            ENUM_EL(LONGEXPR,)    \
+           ENUM_EL(NULLEXPR,)    \
            ENUM_EL(VAREXPR,)     \
            ENUM_EL(ASSIGNMENTEXPR,) \
            ENUM_EL(HTMLEXPR,)    \
