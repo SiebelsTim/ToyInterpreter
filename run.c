@@ -194,12 +194,14 @@ static Function* find_function(Function* parent, const char* name)
 
 static void run_call(Runtime* R, Function* fn)
 {
-    size_t stridx = *R->ip++;
-    assert(stridx < fn->strlen);
-    const char* fnname = fn->strs[stridx];
+    const char* fnname = tostring(R, -1);
+    pop(R);
 
     Function* callee = find_function(fn, fnname);
+    free((void*)fnname);
     assert(callee && "Function not found");
+    const uint8_t param_count = *R->ip++;
+    assert(param_count == callee->paramlen);
 
     Runtime* newruntime = create_runtime();
     run_function(newruntime, callee);
@@ -454,7 +456,7 @@ void run_file(FILE* file) {
     Runtime* R = create_runtime();
     //print_code(fn);
     //optimize(fn);
-    //print_code(fn);
+    print_code(fn);
     run_function(R, fn);
     destroy_runtime(R);
 

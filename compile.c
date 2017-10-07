@@ -16,6 +16,7 @@ Function* create_function(char* name)
     Function* ret = malloc(sizeof(Function));
 
     ret->name = name ? name : strdup("<unnamed>");
+    ret->paramlen = 0;
     ret->codesize = 0;
     ret->codecapacity = 8;
     ret->code = calloc(sizeof(*ret->code), ret->codecapacity);
@@ -308,9 +309,12 @@ Function* compile(Function* fn, AST* ast)
             emit(fn, OP_RETURN);
             break;
         case AST_CALL:
-            emit(fn, OP_CALL);
+            emit(fn, OP_STR);
+            assert(ast->val.str);
             addstring(fn, ast->val.str);
             ast->val.str = NULL;
+            emit(fn, OP_CALL);
+            emitraw(fn, 0); // Number of parameters
             break;
         case AST_BLOCK:
             compile_blockstmt(fn, ast);
@@ -393,13 +397,16 @@ void print_code(Function* fn)
         }
         switch (*ip++) {
             case OP_STR:
-            case OP_CALL:
                 assert(*ip < fn->strlen);
                 bytes[1] = *ip;
                 char* escaped_string = malloc((strlen(fn->strs[*ip]) * 2 + 1) * sizeof(char));
                 escaped_str(escaped_string, fn->strs[*ip++]);
                 chars_written += fprintf(stderr, "\"%s\"", escaped_string);
                 free(escaped_string);
+                break;
+            case OP_CALL:
+                bytes[1] = *ip;
+                chars_written += fprintf(stderr, "%d", *ip++);
                 break;
             case OP_LONG:
                 bytes[1] = *ip;

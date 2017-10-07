@@ -95,6 +95,7 @@ static inline size_t op_len(Operator op)
         case OP_LOOKUP:
         case OP_JMP:
         case OP_JMPZ:
+        case OP_CALL:
             return 2;
         case OP_LONG:
             return 3;
