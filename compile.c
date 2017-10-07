@@ -6,35 +6,46 @@
 #include <memory.h>
 #include "compile.h"
 #include "op_util.h"
+#include "array-util.h"
+#include "parse.h"
 
 DEFINE_ENUM(Operator, ENUM_OPERATOR);
 
-Function* create_function()
+Function* create_function(char* name)
 {
     Function* ret = malloc(sizeof(Function));
 
-    ret->name = "<unnamed>";
+    ret->name = name ? name : strdup("<unnamed>");
     ret->codesize = 0;
     ret->codecapacity = 8;
     ret->code = calloc(sizeof(*ret->code), ret->codecapacity);
-    ret->ip = ret->code;
 
     ret->strcapacity = 4;
     ret->strlen = 0;
     ret->strs = calloc(sizeof(*ret->strs), ret->strcapacity);
+
+    ret->funcapacity = 0;
+    ret->funlen = 0;
+    ret->functions = NULL;
 
     return ret;
 }
 
 void free_function(Function* fn)
 {
+    free(fn->name);
     free(fn->code);
 
     for (int i = 0; i < fn->strlen; ++i) {
         free(fn->strs[i]);
     }
-
     free(fn->strs);
+
+    for (size_t i = 0; i < fn->funlen; ++i) {
+        free_function(fn->functions[i]);
+    }
+    free(fn->functions);
+
     free(fn);
 }
 
@@ -61,9 +72,7 @@ static inline void try_code_resize(Function* fn)
         Operator* tmp = realloc(fn->code, sizeof(*fn->code) * fn->codecapacity);
         if (!tmp) compiletimeerror("Out of memory");
 
-        size_t diff = (fn->ip - fn->code); // adjust IP
         fn->code = tmp;
-        fn->ip = fn->code + diff;
     }
 }
 
@@ -119,6 +128,27 @@ static void addstring(Function* fn, char* str)
     try_strs_resize(fn);
     fn->strs[fn->strlen] = str;
     emitraw(fn, fn->strlen++);
+}
+
+static void addfunction(Function* parent, Function* fn)
+{
+    if (!try_resize(&parent->funcapacity, parent->funlen,
+                    (void**)&parent->functions, sizeof(*parent->functions), NULL)) {
+        compiletimeerror("could not realloc functions");
+        return;
+    }
+
+    assert(parent->funlen < parent->funcapacity);
+    parent->functions[parent->funlen++] = fn;
+}
+
+static void compile_function(Function* parent, AST* ast)
+{
+    Function* fn = create_function(ast->val.str);
+    ast->val.str = NULL;
+
+    addfunction(parent, fn);
+    compile(fn, ast->node2);
 }
 
 static void compile_blockstmt(Function* fn, AST* ast)
@@ -270,6 +300,18 @@ static void compile_forstmt(Function* fn, AST* ast) {
 Function* compile(Function* fn, AST* ast)
 {
     switch (ast->type) {
+        case AST_FUNCTION:
+            compile_function(fn, ast);
+            break;
+        case AST_RETURN:
+            compile(fn, ast->node1);
+            emit(fn, OP_RETURN);
+            break;
+        case AST_CALL:
+            emit(fn, OP_CALL);
+            addstring(fn, ast->val.str);
+            ast->val.str = NULL;
+            break;
         case AST_BLOCK:
             compile_blockstmt(fn, ast);
             break;
@@ -333,40 +375,14 @@ Function* compile(Function* fn, AST* ast)
     return fn;
 }
 
-static char escape_chars[] = {
-    '0', 0, 0, 0, 0, 0, 0, 0, // 07
-    0, 't', 'n', 0, 0, 'r', 0, 0, // 017
-    0, 0, 0, 0, 0, 0, 0, 0, // 027
-    0, 0, 0, 0, 0, 0, 0
-};
-
-static char* escaped_str(const char* str)
-{
-    _Static_assert(arrcount(escape_chars) == 0x1f, "Not enough escape chars");
-    size_t pos = 0;
-    char* ret = malloc((strlen(str) * 2 + 1) * sizeof(char));
-    while (*str != '\0') {
-        if (*str < 0x20 && escape_chars[(unsigned char)*str] != 0) { // First 0x20 chars are special chars
-            ret[pos++] = '\\';
-            ret[pos++] = escape_chars[(unsigned char)*str];
-        } else {
-            ret[pos++] = *str;
-        }
-        str++;
-    }
-    ret[pos++] = '\0';
-    return ret;
-}
-
 void print_code(Function* fn)
 {
-    Operator* prev_ip = fn->ip;
-    fn->ip = fn->code;
+    Operator* ip = fn->code;
     int64_t lint;
     fprintf(stderr, "Function: %s\n-----------------------\n", fn->name);
-    while ((size_t)(fn->ip - fn->code) < fn->codesize) {
-        fprintf(stderr, "%02lx: ", fn->ip - fn->code);
-        Operator op = *fn->ip;
+    while ((size_t)(ip - fn->code) < fn->codesize) {
+        fprintf(stderr, "%02lx: ", ip - fn->code);
+        Operator op = *ip;
         const char* opname = get_Operator_name(op);
         size_t chars_written = 0;
         unsigned char bytes[3] = {op, 0, 0}; // We have three bytes maximum per opcode
@@ -375,39 +391,41 @@ void print_code(Function* fn)
         } else {
             chars_written += fprintf(stderr, "%s ", opname);
         }
-        switch (*fn->ip++) {
+        switch (*ip++) {
             case OP_STR:
-                assert(*fn->ip < fn->strlen);
-                bytes[1] = *fn->ip;
-                char* escaped_string = escaped_str(fn->strs[*fn->ip++]);
+            case OP_CALL:
+                assert(*ip < fn->strlen);
+                bytes[1] = *ip;
+                char* escaped_string = malloc((strlen(fn->strs[*ip]) * 2 + 1) * sizeof(char));
+                escaped_str(escaped_string, fn->strs[*ip++]);
                 chars_written += fprintf(stderr, "\"%s\"", escaped_string);
                 free(escaped_string);
                 break;
             case OP_LONG:
-                bytes[1] = *fn->ip;
-                lint = *fn->ip++ << 4;
-                bytes[2] = *fn->ip;
-                lint |= *fn->ip++;
+                bytes[1] = *ip;
+                lint = *ip++ << 4;
+                bytes[2] = *ip;
+                lint |= *ip++;
                 chars_written += fprintf(stderr, "%" PRId64, lint);
                 break;
             case OP_BIN:
-                bytes[1] = *fn->ip;
-                chars_written += fprintf(stderr, "%s", get_token_name(*fn->ip++));
+                bytes[1] = *ip;
+                chars_written += fprintf(stderr, "%s", get_token_name(*ip++));
                 break;
             case OP_ASSIGN:
-                bytes[1] = *fn->ip;
-                assert(*fn->ip < fn->strlen);
-                chars_written += fprintf(stderr, "$%s = pop()", fn->strs[*fn->ip++]);
+                bytes[1] = *ip;
+                assert(*ip < fn->strlen);
+                chars_written += fprintf(stderr, "$%s = pop()", fn->strs[*ip++]);
                 break;
             case OP_LOOKUP:
-                bytes[1] = *fn->ip;
-                assert(*fn->ip < fn->strlen);
-                chars_written += fprintf(stderr, "$%s", fn->strs[*fn->ip++]);
+                bytes[1] = *ip;
+                assert(*ip < fn->strlen);
+                chars_written += fprintf(stderr, "$%s", fn->strs[*ip++]);
                 break;
             case OP_JMP:
             case OP_JMPZ:
-                bytes[1] = *fn->ip;
-                chars_written += fprintf(stderr, ":%02lx", (unsigned long)*fn->ip++);
+                bytes[1] = *ip;
+                chars_written += fprintf(stderr, ":%02lx", (unsigned long)*ip++);
                 break;
 
             default:
@@ -424,5 +442,8 @@ void print_code(Function* fn)
     }
 
     fprintf(stderr, "\n\n");
-    fn->ip = prev_ip;
+
+    for (size_t i = 0; i < fn->funlen; ++i) {
+        print_code(fn->functions[i]);
+    }
 }

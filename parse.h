@@ -20,6 +20,9 @@
            ENUM_EL(AST_NULL,)    \
            ENUM_EL(AST_VAR,)     \
            ENUM_EL(AST_ASSIGNMENT,) \
+           ENUM_EL(AST_FUNCTION,) \
+           ENUM_EL(AST_CALL,) \
+           ENUM_EL(AST_RETURN,) \
            ENUM_EL(AST_HTML,)    \
 
 DECLARE_ENUM(ASTTYPE, ENUM_ASTTYPE);

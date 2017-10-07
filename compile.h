@@ -7,6 +7,8 @@
 
 #define ENUM_OPERATOR(ENUM_EL) \
         ENUM_EL(OP_INVALID, = 0) \
+        ENUM_EL(OP_RETURN,) \
+        ENUM_EL(OP_CALL,)  \
         ENUM_EL(OP_ECHO,) \
         ENUM_EL(OP_STR,) \
         ENUM_EL(OP_LONG,) \
@@ -35,7 +37,6 @@ DECLARE_ENUM(Operator, ENUM_OPERATOR);
 
 typedef struct Function {
     char* name;
-    Operator* ip;
     size_t codesize;
     size_t codecapacity;
     Operator* code;
@@ -43,12 +44,16 @@ typedef struct Function {
     char** strs;
     uint16_t strlen;
     uint16_t strcapacity;
+
+    struct Function** functions;
+    size_t funlen;
+    size_t funcapacity;
 } Function;
 
 typedef uint32_t RelAddr;
 _Static_assert(sizeof(RelAddr) == sizeof(Operator), "RelAddr must be == Operator in size");
 
-Function* create_function();
+Function* create_function(char* name);
 void free_function(Function* fn);
 
 Function* compile(Function* fn, AST* root);

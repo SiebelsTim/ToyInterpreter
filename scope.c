@@ -11,6 +11,7 @@ Scope* create_scope()
     ret->capacity = 5;
     ret->size = 0;
     ret->vars = calloc(ret->capacity, sizeof(*ret->vars));
+    ret->parent = NULL;
 
     return ret;
 }

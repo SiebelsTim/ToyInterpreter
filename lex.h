@@ -5,14 +5,14 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#define arrcount(arr) (sizeof(arr) / sizeof((arr)[0]))
-
 typedef enum TOKEN {
     TK_OPENTAG = 256, // Make them outside ascii range
+    TK_IDENTIFIER,
     TK_ECHO,
     TK_STRING,
     TK_LONG,
     TK_FUNCTION,
+    TK_RETURN,
     TK_IF,
     TK_ELSE,
     TK_TRUE,

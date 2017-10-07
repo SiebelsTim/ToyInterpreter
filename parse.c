@@ -5,6 +5,8 @@
 #include <stdnoreturn.h>
 #include <inttypes.h>
 #include "parse.h"
+#include "lex.h"
+#include "util.h"
 
 DEFINE_ENUM(ASTTYPE, ENUM_ASTTYPE);
 
@@ -93,6 +95,7 @@ static AST* parse_ifstmt(State* S);
 static AST* parse_whilestmt(State* S);
 static AST* parse_forstmt(State* S);
 static AST* parse_blockstmt(State* S);
+static AST* parse_function(State* S);
 
 static AST* parse_stmt(State* S)
 {
@@ -107,6 +110,9 @@ static AST* parse_stmt(State* S)
     }
     if (accept(S, TK_FOR)) {
         return parse_forstmt(S);
+    }
+    if (accept(S, TK_FUNCTION)) {
+        return parse_function(S);
     }
     if (accept(S, '{')) {
         return parse_blockstmt(S);
@@ -185,7 +191,18 @@ static AST* parse_primary(State* S)
         }
     }
     if (accept(S, '!')) {
-        ret = EXP1(AST_NOTOP, parse_expr(S));
+        return EXP1(AST_NOTOP, parse_expr(S));
+    }
+    if (accept(S, TK_RETURN)) {
+        return EXP1(AST_RETURN, parse_expr(S));
+    }
+    if (S->token == TK_IDENTIFIER) {
+        char* name = overtake_str(S);
+        expect(S, TK_IDENTIFIER);
+        expect(S, '(');
+        expect(S, ')');
+        ret = EXP0(AST_CALL);
+        ret->val.str = name;
         return ret;
     }
 
@@ -344,6 +361,30 @@ static AST* parse_forstmt(State* S)
     return EXP4(AST_FOR, init, condition, post, body);
 }
 
+static AST* parse_arglist(State* S)
+{
+    return NULL;
+}
+
+static AST* parse_function(State* S)
+{
+    if (S->token != TK_IDENTIFIER) {
+        parseerror(S, "Expected IDENTIFIER, %s given.", get_token_name(S->token));
+        return NULL;
+    }
+    char* name = overtake_str(S);
+    expect(S, TK_IDENTIFIER); // Skip
+    expect(S, '(');
+    AST* parameters = parse_arglist(S);
+    expect(S, ')');
+    AST* body = parse_stmt(S);
+
+    AST* ret = EXP2(AST_FUNCTION, parameters, body);
+    ret->val.str = name;
+
+    return ret;
+}
+
 AST* parse(FILE* file)
 {
     State* S = new_state(file);
@@ -403,11 +444,16 @@ void print_ast(AST* ast, int level)
     }
     printf("%p %s: ", ast, get_ASTTYPE_name(ast->type));
 
+    char* escaped;
     switch (ast->type) {
         case AST_STRING:
         case AST_VAR:
         case AST_ASSIGNMENT:
-            puts(ast->val.str);
+        case AST_FUNCTION:
+        case AST_CALL:
+            escaped = malloc((strlen(ast->val.str) * 2 + 1) * sizeof(char));
+            puts(escaped_str(escaped, ast->val.str));
+            free(escaped);
             break;
         case AST_LONG:
             printf("%" PRId64 "\n", ast->val.lint);
@@ -438,5 +484,9 @@ void print_ast(AST* ast, int level)
 
     if (ast->node3) {
         print_ast(ast->node3, level+1);
+    }
+
+    if (ast->node4) {
+        print_ast(ast->node4, level+1);
     }
 }

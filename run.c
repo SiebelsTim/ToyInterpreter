@@ -180,6 +180,33 @@ static int64_t tolong(Runtime* R, int idx)
     }
 }
 
+static Function* find_function(Function* parent, const char* name)
+{
+    for (size_t i = 0; i < parent->funlen; ++i) {
+        if (strcmp(parent->functions[i]->name, name) == 0) {
+            return parent->functions[i];
+        }
+    }
+
+    return NULL;
+}
+
+
+static void run_call(Runtime* R, Function* fn)
+{
+    size_t stridx = *R->ip++;
+    assert(stridx < fn->strlen);
+    const char* fnname = fn->strs[stridx];
+
+    Function* callee = find_function(fn, fnname);
+    assert(callee && "Function not found");
+
+    Runtime* newruntime = create_runtime();
+    run_function(newruntime, callee);
+    Variant val = cpy_var(*top(newruntime));
+    destroy_runtime(newruntime);
+    push(R, val);
+}
 
 static void run_echo(Runtime* R)
 {
@@ -315,27 +342,33 @@ static void run_notop(Runtime* R)
 static void run_assignmentexpr(Runtime* R, Function* fn)
 {
     Variant* val = top(R);
-    set_var(R, fn->strs[*fn->ip++], *val);
+    set_var(R, fn->strs[*R->ip++], *val);
     // result of running the expr still lies on the stack.
 }
 
-static void run_function(Runtime* R, Function* fn)
+void run_function(Runtime* R, Function* fn)
 {
-    while ((size_t)(fn->ip - fn->code) < fn->codesize) {
-        Operator op = *fn->ip++;
+    R->ip = fn->code;
+    while ((size_t)(R->ip - fn->code) < fn->codesize) {
+        Operator op = *R->ip++;
         int64_t lint;
         switch (op) {
             case OP_NOP:
+                break;
+            case OP_RETURN:
+                return; // Finish executing Function
+            case OP_CALL:
+                run_call(R, fn);
                 break;
             case OP_ECHO:
                 run_echo(R);
                 break;
             case OP_STR:
-                pushstr(R, fn->strs[*fn->ip++]);
+                pushstr(R, fn->strs[*R->ip++]);
                 break;
             case OP_LONG:
-                lint = (*fn->ip++) << 4;
-                lint |= (*fn->ip++);
+                lint = (*R->ip++) << 4;
+                lint |= (*R->ip++);
                 pushlong(R, lint);
                 break;
             case OP_TRUE:
@@ -348,7 +381,7 @@ static void run_function(Runtime* R, Function* fn)
                 pushnull(R);
                 break;
             case OP_BIN:
-                run_binop(R, *fn->ip++);
+                run_binop(R, *R->ip++);
                 break;
             case OP_LTE:
                 run_binop(R, TK_LTEQ);
@@ -388,19 +421,19 @@ static void run_function(Runtime* R, Function* fn)
                 pushlong(R, lint - 1);
                 break;
             case OP_LOOKUP:
-                push(R, lookup(R, fn->strs[*fn->ip++]));
+                push(R, lookup(R, fn->strs[*R->ip++]));
                 break;
             case OP_ASSIGN:
                 run_assignmentexpr(R, fn);
                 break;
             case OP_JMP:
-                fn->ip = fn->code + *fn->ip;
+                R->ip = fn->code + *R->ip;
                 break;
             case OP_JMPZ:
                 if (tolong(R, -1) == 0) {
-                    fn->ip = fn->code + *fn->ip;
+                    R->ip = fn->code + *R->ip;
                 } else {
-                    fn->ip++; // jump over jmpaddr
+                    R->ip++; // jump over jmpaddr
                 }
                 break;
             case OP_INVALID:
@@ -415,14 +448,13 @@ static void run_function(Runtime* R, Function* fn)
 void run_file(FILE* file) {
     AST* ast = parse(file);
 
-    Function* fn = create_function();
-    fn->name = "<pseudomain>";
+    Function* fn = create_function(strdup("<pseudomain>"));
     compile(fn, ast);
 
     Runtime* R = create_runtime();
-    print_code(fn);
-    optimize(fn);
-    print_code(fn);
+    //print_code(fn);
+    //optimize(fn);
+    //print_code(fn);
     run_function(R, fn);
     destroy_runtime(R);
 

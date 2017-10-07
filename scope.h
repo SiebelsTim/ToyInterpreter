@@ -8,6 +8,7 @@ typedef struct Scope {
     size_t capacity;
     size_t size;
     Variable* vars;
+    struct Scope* parent;
 } Scope;
 
 Scope* create_scope();

@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include "lex.h"
+#include "util.h"
 
 
 static char* resize_str(char* str, size_t previous_size, size_t new_size)
@@ -128,6 +129,8 @@ static int lex_ident(State* S)
         ret = TK_ECHO;
     } else if (strcmp(str, "function") == 0) {
         ret = TK_FUNCTION;
+    } else if (strcmp(str, "return") == 0) {
+        ret = TK_RETURN;
     } else if (strcmp(str, "if") == 0) {
         ret = TK_IF;
     } else if (strcmp(str, "else") == 0) {
@@ -143,10 +146,10 @@ static int lex_ident(State* S)
     } else if (strcmp(str, "for") == 0) {
         ret = TK_FOR;
     } else {
-        char* msg = malloc((strlen("Unknown identifier '%s'") + strlen(str)) * sizeof(char));
-        sprintf(msg, "Unknown identifier '%s'", str);
-        ret = syntax_error(S, msg);
-        free(msg);
+        ret = TK_IDENTIFIER;
+        S->u.string = str;
+        str = NULL; // overtake
+        S->val = MALLOCSTR;
     }
 
     free(str);
@@ -395,7 +398,7 @@ static char* tokennames[] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0,
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, // Ends with 255
 
-    "OPENTAG", "ECHO", "STRING", "LONG", "FUNCTION", "IF", "ELSE",
+    "OPENTAG", "IDENTIFIER", "ECHO", "STRING", "LONG", "FUNCTION", "RETURN", "IF", "ELSE",
     "TRUE", "FALSE", "NULL", "VAR",
     "AND", "OR", "EQ", "LTEQ", "GTEQ",
     "WHILE", "FOR",

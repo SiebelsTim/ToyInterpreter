@@ -1,11 +1,15 @@
 #ifndef PHPINTERP_OP_UTIL_H
 #define PHPINTERP_OP_UTIL_H
 
+#include <memory.h>
 #include "compile.h"
+#include "util.h"
 
 static inline bool is_push_op(Operator op)
 {
     switch (op) {
+        case OP_RETURN:
+        case OP_CALL:
         case OP_STR:
         case OP_LONG:
         case OP_TRUE:
@@ -58,6 +62,8 @@ static inline bool is_immediate(Operator op)
         case OP_NULL:
             return true;
         case OP_INVALID:
+        case OP_CALL:
+        case OP_RETURN:
         case OP_ECHO:
         case OP_BIN:
         case OP_NOT:

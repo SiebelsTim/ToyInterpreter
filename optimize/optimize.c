@@ -28,34 +28,34 @@ Instruction* code_to_instructions(Function* fn)
 {
     size_t size = 0;
     Instruction* ret = calloc(sizeof(Instruction), fn->codesize + 1); // This can only get smaller
-    while ((size_t)(fn->ip - fn->code) < fn->codesize) {
-        ret[size].operator = fn->ip;
-        switch (*fn->ip) {
+    Operator* ip = fn->code;
+    while ((size_t)(ip - fn->code) < fn->codesize) {
+        ret[size].operator = ip;
+        switch (*ip) {
             case OP_STR:
             case OP_ASSIGN:
             case OP_LOOKUP:
-                fn->ip++;
-                assert(*fn->ip < fn->strlen);
-                ret[size].data.str = fn->strs[*fn->ip];
+                ip++;
+                assert(*ip < fn->strlen);
+                ret[size].data.str = fn->strs[*ip];
                 break;
             case OP_BIN:
-                ret[size].data.lint = *++fn->ip;
+                ret[size].data.lint = *++ip;
                 break;
             case OP_JMP:
             case OP_JMPZ:
-                ret[size].data.addr = *++fn->ip;
+                ret[size].data.addr = *++ip;
                 break;
             case OP_LONG:
-                ret[size].data.lint = *++fn->ip << 4;
-                ret[size].data.lint |= *++fn->ip;
+                ret[size].data.lint = *++ip << 4;
+                ret[size].data.lint |= *++ip;
                 break;
             default:
                 break;
         }
         size++;
-        fn->ip++;
+        ip++;
     }
-    fn->ip = fn->code;
 
     ret[size].operator = NULL; // End of array
 
@@ -185,7 +185,6 @@ static Block* identify_basic_blocks(Function* fn)
         }
         ins++;
     }
-    fn->ip = fn->code;
     qsort(leaders, size, sizeof(*leaders), greater_than);
     size = remove_duplicates(leaders, size);
 
@@ -370,27 +369,27 @@ static void remove_nops(Function* fn)
     size_t capacity = 4;
     size_t size = 0;
     Operator** jmps = calloc(sizeof(*jmps), capacity);
-    while ((size_t)(fn->ip - fn->code) < fn->codesize) {
-        if (*fn->ip == OP_JMP || *fn->ip == OP_JMPZ) {
+    Operator* ip = fn->code;
+    while ((size_t)(ip - fn->code) < fn->codesize) {
+        if (*ip == OP_JMP || *ip == OP_JMPZ) {
             try_resize(&capacity, size, (void**) &jmps, sizeof(*jmps), optimizeerror);
-            jmps[size++] = ++fn->ip;
-            fn->ip++; // Skip over jump addr
+            jmps[size++] = ++ip;
+            ip++; // Skip over jump addr
         }
-        next_instruction(&fn->ip);
+        next_instruction(&ip);
     }
-    fn->ip = fn->code;
+    ip = fn->code;
 
 
-    while ((size_t)(fn->ip - fn->code) < fn->codesize) {
-        if (*fn->ip == OP_NOP && !jmplist_contains(jmps, size, fn->ip - fn->code)) {
-            adjust_jumps(jmps, size, (RelAddr)(fn->ip - fn->code), fn->ip);
-            memmove(fn->ip, fn->ip+1, (fn->codesize - (fn->ip - fn->code)) * sizeof(*fn->ip));
+    while ((size_t)(ip - fn->code) < fn->codesize) {
+        if (*ip == OP_NOP && !jmplist_contains(jmps, size, ip - fn->code)) {
+            adjust_jumps(jmps, size, (RelAddr)(ip - fn->code), ip);
+            memmove(ip, ip+1, (fn->codesize - (ip - fn->code)) * sizeof(*ip));
             fn->codesize--;
         } else {
-            next_instruction(&fn->ip);
+            next_instruction(&ip);
         }
     }
-    fn->ip = fn->code;
 
     free(jmps);
 }
