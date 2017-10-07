@@ -38,6 +38,7 @@ DECLARE_ENUM(Operator, ENUM_OPERATOR);
 typedef struct Function {
     char* name;
     uint8_t paramlen;
+    char** params;
 
     size_t codesize;
     size_t codecapacity;

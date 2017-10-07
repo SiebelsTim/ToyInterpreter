@@ -199,15 +199,18 @@ static void run_call(Runtime* R, Function* fn)
 
     Function* callee = find_function(fn, fnname);
     free((void*)fnname);
-    assert(callee && "Function not found");
+    assert(callee && "Function not found"); // TODO: print error
     const uint8_t param_count = *R->ip++;
-    assert(param_count == callee->paramlen);
+    assert(param_count == callee->paramlen && "param count mismatch"); // TODO: print error
 
     Runtime* newruntime = create_runtime();
+    for (int i = 0; i < param_count; ++i) {
+        set_var(newruntime, callee->params[i], *top(R)); // Transfer arguments
+        pop(R);
+    }
     run_function(newruntime, callee);
-    Variant val = cpy_var(*top(newruntime));
+    push(R, *top(newruntime)); // Return variable
     destroy_runtime(newruntime);
-    push(R, val);
 }
 
 static void run_echo(Runtime* R)

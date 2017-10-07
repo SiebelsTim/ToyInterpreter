@@ -5,7 +5,6 @@
 #include <stdnoreturn.h>
 #include <inttypes.h>
 #include "parse.h"
-#include "lex.h"
 #include "util.h"
 
 DEFINE_ENUM(ASTTYPE, ENUM_ASTTYPE);
@@ -60,6 +59,31 @@ static inline bool expect(State* S, int tok)
     return true;
 }
 
+static inline bool expect_one_of(State* S, int count, ...)
+{
+    va_list ap;
+    va_start(ap, count);
+
+    char expectstr[100] = {0};
+    size_t expectstr_len = 0;
+
+    for (int i = 0; i < count; ++i) {
+        const int tok = va_arg(ap, int);
+        if (accept(S, tok)) {
+            return true;
+        }
+        const char* tok_name = get_token_name(tok);
+        expectstr_len += strlen(tok_name) + 2;
+        if (expectstr_len < arrcount(expectstr) - 1) {
+            strcat(expectstr, tok_name);
+            strcat(expectstr, ", ");
+        }
+    }
+
+    parseerror(S, "Expected one of %s got %s", expectstr, get_token_name(S->token));
+    return false;
+}
+
 
 
 static AST* new_ast(ASTTYPE type, AST* one, AST* two, AST* three, AST* four)
@@ -77,10 +101,10 @@ static AST* new_ast(ASTTYPE type, AST* one, AST* two, AST* three, AST* four)
     return ret;
 }
 
-static AST* block_append(AST* block, AST* ast)
+static AST* ast_list_append(AST *block, AST *ast)
 {
     assert(block);
-    assert(block->type == AST_BLOCK);
+    assert(block->type == AST_LIST);
     AST* current = block;
     while (current->next) {
         current = current->next;
@@ -96,6 +120,7 @@ static AST* parse_whilestmt(State* S);
 static AST* parse_forstmt(State* S);
 static AST* parse_blockstmt(State* S);
 static AST* parse_function(State* S);
+static AST* parse_paramlist(State* S);
 
 static AST* parse_stmt(State* S)
 {
@@ -200,8 +225,9 @@ static AST* parse_primary(State* S)
         char* name = overtake_str(S);
         expect(S, TK_IDENTIFIER);
         expect(S, '(');
+        AST* paramlist = parse_paramlist(S);
         expect(S, ')');
-        ret = EXP0(AST_CALL);
+        ret = EXP1(AST_CALL, paramlist);
         ret->val.str = name;
         return ret;
     }
@@ -310,9 +336,9 @@ static AST* parse_echostmt(State* S)
 
 static AST* parse_blockstmt(State* S)
 {
-    AST* ret = EXP0(AST_BLOCK);
+    AST* ret = EXP0(AST_LIST);
     while (S->token != '}') {
-        block_append(ret, parse_stmt(S));
+        ast_list_append(ret, parse_stmt(S));
     }
     expect(S, '}');
 
@@ -363,7 +389,45 @@ static AST* parse_forstmt(State* S)
 
 static AST* parse_arglist(State* S)
 {
-    return NULL;
+    AST* ret = EXP0(AST_LIST);
+
+    if (S->token == ')') {
+        return ret;
+    }
+
+    while (true) {
+        if (S->token == TK_VAR) {
+            AST* arg = EXP0(AST_ARGUMENT);
+            arg->val.str = overtake_str(S);
+            ast_list_append(ret, arg);
+        }
+        expect(S, TK_VAR);
+
+        if (S->token != ',') {
+            break;
+        }
+    }
+
+    return ret;
+}
+
+static AST* parse_paramlist(State* S)
+{
+    AST* ret = EXP0(AST_LIST);
+
+    if (S->token == ')') {
+        return ret;
+    }
+
+    while (true) {
+        ast_list_append(ret, parse_expr(S));
+
+        if (S->token != ',') {
+            break;
+        }
+    }
+
+    return ret;
 }
 
 static AST* parse_function(State* S)
@@ -388,29 +452,43 @@ static AST* parse_function(State* S)
 AST* parse(FILE* file)
 {
     State* S = new_state(file);
-    AST* ret = EXP0(AST_BLOCK);
+    AST* ret = EXP0(AST_LIST);
     get_next_token(S); // init
     while (S->token != TK_END) {
         if (S->token == TK_HTML) {
             AST* html = EXP0(AST_HTML);
             html->val.str = S->u.string;
-            block_append(ret, html);
+            ast_list_append(ret, html);
         }
         if (S->mode != PHP || S->token == TK_OPENTAG) {
             get_next_token(S);
             continue;
         }
 
-        block_append(ret, parse_stmt(S));
+        ast_list_append(ret, parse_stmt(S));
     }
     destroy_state(S);
 
     return ret;
 }
 
+size_t ast_list_count(AST* ast)
+{
+    assert(ast->type == AST_LIST);
+    size_t ret = 0;
+
+    while (ast->next) {
+        ret++;
+        ast = ast->next;
+    }
+
+    return ret;
+}
+
 void destroy_ast(AST* ast)
 {
-    if (ast->type == AST_STRING || ast->type == AST_VAR || ast->type == AST_ASSIGNMENT) {
+    if (ast->type == AST_STRING || ast->type == AST_VAR ||
+        ast->type == AST_ASSIGNMENT || ast->type == AST_ARGUMENT) {
         free(ast->val.str);
     }
     if (ast->next) {
@@ -466,7 +544,7 @@ void print_ast(AST* ast, int level)
             break;
     }
 
-    if (ast->type == AST_BLOCK) {
+    if (ast->type == AST_LIST) {
         while (ast->next) {
             print_ast(ast->next, level+1);
             ast = ast->next;

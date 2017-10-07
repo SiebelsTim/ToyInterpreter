@@ -6,7 +6,7 @@
 #include "enum-util.h"
 
 #define ENUM_ASTTYPE(ENUM_EL)   \
-           ENUM_EL(AST_BLOCK, =0)   \
+           ENUM_EL(AST_LIST, =0)   \
            ENUM_EL(AST_ECHO,)    \
            ENUM_EL(AST_IF,)      \
            ENUM_EL(AST_WHILE,)   \
@@ -21,6 +21,7 @@
            ENUM_EL(AST_VAR,)     \
            ENUM_EL(AST_ASSIGNMENT,) \
            ENUM_EL(AST_FUNCTION,) \
+           ENUM_EL(AST_ARGUMENT,)    \
            ENUM_EL(AST_CALL,) \
            ENUM_EL(AST_RETURN,) \
            ENUM_EL(AST_HTML,)    \
@@ -42,6 +43,7 @@ typedef struct AST {
 
 AST* parse(FILE*);
 
+size_t ast_list_count(AST*);
 void print_ast(AST*, int level);
 
 void destroy_ast(AST*);

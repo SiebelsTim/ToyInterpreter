@@ -17,6 +17,8 @@ Function* create_function(char* name)
 
     ret->name = name ? name : strdup("<unnamed>");
     ret->paramlen = 0;
+    ret->params = NULL;
+
     ret->codesize = 0;
     ret->codecapacity = 8;
     ret->code = calloc(sizeof(*ret->code), ret->codecapacity);
@@ -46,6 +48,12 @@ void free_function(Function* fn)
         free_function(fn->functions[i]);
     }
     free(fn->functions);
+
+
+    for (size_t i = 0; i < fn->paramlen; ++i) {
+        free(fn->params[i]);
+    }
+    free(fn->params);
 
     free(fn);
 }
@@ -145,16 +153,56 @@ static void addfunction(Function* parent, Function* fn)
 
 static void compile_function(Function* parent, AST* ast)
 {
+    assert(ast->node1);
     Function* fn = create_function(ast->val.str);
     ast->val.str = NULL;
+    size_t paramcount = ast_list_count(ast->node1);
+
+    fn->paramlen = (uint8_t) paramcount;
+    if (paramcount != fn->paramlen) {
+        compiletimeerror("Failed to compile function with %d parameters.", paramcount);
+        return;
+    }
+
+    fn->params = malloc(sizeof(*fn->params) * paramcount);
+    AST* param = ast->node1->next;
+    for (int i = 0; param; ++i, param = param->next) {
+        assert(param->type == AST_ARGUMENT);
+        fn->params[i] = param->val.str;
+        param->val.str = NULL;
+    }
 
     addfunction(parent, fn);
     compile(fn, ast->node2);
+
+
+    emit(fn, OP_NULL); // Safeguard to guarantee that we have a return value
+    emit(fn, OP_RETURN);
+}
+
+static void compile_call(Function* fn, AST* ast)
+{
+    assert(ast->node1);
+    size_t argcount = 0;
+    AST* args = ast->node1->next;
+    while (args) { // Push args
+        compile(fn, args);
+        args = args->next;
+        argcount++;
+    }
+
+    emit(fn, OP_STR); // function name
+    assert(ast->val.str);
+    addstring(fn, ast->val.str);
+    ast->val.str = NULL;
+
+    emit(fn, OP_CALL);
+    emitraw(fn, argcount); // Number of parameters
 }
 
 static void compile_blockstmt(Function* fn, AST* ast)
 {
-    assert(ast->type == AST_BLOCK);
+    assert(ast->type == AST_LIST);
     AST* current = ast->next;
     while (current) {
         compile(fn, current);
@@ -309,14 +357,9 @@ Function* compile(Function* fn, AST* ast)
             emit(fn, OP_RETURN);
             break;
         case AST_CALL:
-            emit(fn, OP_STR);
-            assert(ast->val.str);
-            addstring(fn, ast->val.str);
-            ast->val.str = NULL;
-            emit(fn, OP_CALL);
-            emitraw(fn, 0); // Number of parameters
+            compile_call(fn, ast);
             break;
-        case AST_BLOCK:
+        case AST_LIST:
             compile_blockstmt(fn, ast);
             break;
         case AST_ECHO:
