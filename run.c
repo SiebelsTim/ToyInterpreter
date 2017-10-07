@@ -372,7 +372,7 @@ void run_function(Runtime* R, Function* fn)
                 pushstr(R, fn->strs[*R->ip++]);
                 break;
             case OP_LONG:
-                lint = (*R->ip++) << 4;
+                lint = (int64_t)(*R->ip++) << 32;
                 lint |= (*R->ip++);
                 pushlong(R, lint);
                 break;

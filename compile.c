@@ -428,11 +428,11 @@ void print_code(Function* fn)
     int64_t lint;
     fprintf(stderr, "Function: %s\n-----------------------\n", fn->name);
     while ((size_t)(ip - fn->code) < fn->codesize) {
-        fprintf(stderr, "%02lx: ", ip - fn->code);
+        fprintf(stderr, "%04lx: ", ip - fn->code);
         Operator op = *ip;
         const char* opname = get_Operator_name(op);
         size_t chars_written = 0;
-        unsigned char bytes[3] = {op, 0, 0}; // We have three bytes maximum per opcode
+        Operator bytes[3] = {op, 0, 0}; // We have three bytes maximum per opcode
         if (!opname) {
             fprintf(stderr, "Unexpected op: %d", op);
         } else {
@@ -453,7 +453,7 @@ void print_code(Function* fn)
                 break;
             case OP_LONG:
                 bytes[1] = *ip;
-                lint = *ip++ << 4;
+                lint = ((int64_t)*ip++) << 32;
                 bytes[2] = *ip;
                 lint |= *ip++;
                 chars_written += fprintf(stderr, "%" PRId64, lint);
@@ -486,7 +486,7 @@ void print_code(Function* fn)
         }
         fputc(';', stderr);
         for (size_t i = 0; i < op_len(op); ++i) {
-            fprintf(stderr, " %02x", bytes[i]);
+            fprintf(stderr, " %04x", bytes[i]); // TODO: Longs need %016x.
         }
         fprintf(stderr, "\n");
     }
