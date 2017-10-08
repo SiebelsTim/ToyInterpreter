@@ -33,7 +33,7 @@ typedef struct Scope Scope;
 typedef struct Runtime {
     size_t stacksize;
     size_t stackcapacity;
-    Operator* ip;
+    codepoint_t* ip;
     Variant* stack;
     Scope* scope;
 } Runtime;

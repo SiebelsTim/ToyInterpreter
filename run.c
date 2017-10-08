@@ -5,11 +5,8 @@
 #include <stdbool.h>
 #include <lzma.h>
 #include "run.h"
-#include "parse.h"
 #include "scope.h"
-#include "compile.h"
 #include "array-util.h"
-#include "optimize/optimize.h"
 
 Variant cpy_var(Variant var)
 {
@@ -200,7 +197,7 @@ static void run_call(Runtime* R, Function* fn)
     Function* callee = find_function(fn, fnname);
     free((void*)fnname);
     assert(callee && "Function not found"); // TODO: print error
-    const uint8_t param_count = *R->ip++;
+    const uint8_t param_count = fetch8(R->ip++);
     assert(param_count == callee->paramlen && "param count mismatch"); // TODO: print error
 
     Runtime* newruntime = create_runtime();
@@ -347,7 +344,8 @@ static void run_notop(Runtime* R)
 static void run_assignmentexpr(Runtime* R, Function* fn)
 {
     Variant* val = top(R);
-    set_var(R, fn->strs[*R->ip++], *val);
+    set_var(R, fn->strs[fetch16(R->ip)], *val);
+    R->ip += 2;
     // result of running the expr still lies on the stack.
 }
 
@@ -355,7 +353,7 @@ void run_function(Runtime* R, Function* fn)
 {
     R->ip = fn->code;
     while ((size_t)(R->ip - fn->code) < fn->codesize) {
-        Operator op = *R->ip++;
+        Operator op = (Operator) *R->ip++;
         int64_t lint;
         switch (op) {
             case OP_NOP:
@@ -369,11 +367,12 @@ void run_function(Runtime* R, Function* fn)
                 run_echo(R);
                 break;
             case OP_STR:
-                pushstr(R, fn->strs[*R->ip++]);
+                pushstr(R, fn->strs[fetch16(R->ip)]);
+                R->ip += 2;
                 break;
             case OP_LONG:
-                lint = (int64_t)(*R->ip++) << 32;
-                lint |= (*R->ip++);
+                lint = (int64_t) fetch64(R->ip);
+                R->ip += 8;
                 pushlong(R, lint);
                 break;
             case OP_TRUE:
@@ -386,7 +385,8 @@ void run_function(Runtime* R, Function* fn)
                 pushnull(R);
                 break;
             case OP_BIN:
-                run_binop(R, *R->ip++);
+                run_binop(R, fetch16(R->ip));
+                R->ip += 2;
                 break;
             case OP_LTE:
                 run_binop(R, TK_LTEQ);
@@ -426,19 +426,20 @@ void run_function(Runtime* R, Function* fn)
                 pushlong(R, lint - 1);
                 break;
             case OP_LOOKUP:
-                push(R, lookup(R, fn->strs[*R->ip++]));
+                push(R, lookup(R, fn->strs[fetch16(R->ip)]));
+                R->ip += 2;
                 break;
             case OP_ASSIGN:
                 run_assignmentexpr(R, fn);
                 break;
             case OP_JMP:
-                R->ip = fn->code + *R->ip;
+                R->ip = fn->code + fetch32(R->ip);
                 break;
             case OP_JMPZ:
                 if (tolong(R, -1) == 0) {
-                    R->ip = fn->code + *R->ip;
+                    R->ip = fn->code + fetch32(R->ip);
                 } else {
-                    R->ip++; // jump over jmpaddr
+                    R->ip += 4; // jump over jmpaddr
                 }
                 break;
             case OP_INVALID:
@@ -457,8 +458,6 @@ void run_file(FILE* file) {
     compile(fn, ast);
 
     Runtime* R = create_runtime();
-    //print_code(fn);
-    //optimize(fn);
     print_code(fn);
     run_function(R, fn);
     destroy_runtime(R);

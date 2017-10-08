@@ -36,6 +36,9 @@ static inline bool is_push_op(Operator op)
         case OP_INVALID:
         case OP_ECHO:
             return false;
+        case OP_MAX_VALUE:
+            assert(false && "Encountered OP_MAX_VALUE");
+            return false;
     }
 
     compiletimeerror("is_push_op(): Did not handle %s\n", get_Operator_name(op));
@@ -83,6 +86,9 @@ static inline bool is_immediate(Operator op)
         case OP_SHL:
         case OP_SHR:
             return false;
+        case OP_MAX_VALUE:
+            assert(false && "Encountered OP_MAX_VALUE");
+            return false;
     }
 }
 
@@ -90,33 +96,35 @@ static inline size_t op_len(Operator op)
 {
     switch (op) {
         case OP_STR:
-        case OP_BIN:
         case OP_ASSIGN:
         case OP_LOOKUP:
-        case OP_JMP:
-        case OP_JMPZ:
+        case OP_BIN:
+            return 3;
         case OP_CALL:
             return 2;
+        case OP_JMP:
+        case OP_JMPZ:
+            return 5;
         case OP_LONG:
-            return 3;
+            return 9;
         default:
             return 1;
     }
 }
 
-static inline void swap_adjacent_ops(Operator* op1, Operator* op2)
+static inline void swap_adjacent_ops(codepoint_t* op1, codepoint_t* op2)
 {
-    size_t len1 = op_len(*op1);
-    size_t len2 = op_len(*op2);
+    size_t len1 = op_len((Operator) *op1);
+    size_t len2 = op_len((Operator) *op2);
     assert(op1 + len1 == op2 || op2 + len2 == op1);
     if (len1 == len2) {
         while (len1--) {
-            Operator tmp = op2[len1];
+            codepoint_t tmp = op2[len1];
             op2[len1] = op1[len1];
             op1[len1] = tmp;
         }
     } else if (len1 > len2) {
-        Operator cpy[len1];
+        codepoint_t cpy[len1];
         memcpy(cpy, op1, sizeof(cpy));
         for (size_t i = 0; i < len2; ++i) {
             op1[i] = op2[i];
@@ -130,9 +138,9 @@ static inline void swap_adjacent_ops(Operator* op1, Operator* op2)
 }
 
 
-static inline void insert_nop(Operator* op)
+static inline void insert_nop(codepoint_t* op)
 {
-    size_t len = op_len(*op);
+    size_t len = op_len((Operator) *op);
     while (len--) {
         *op++ = OP_NOP;
     }

@@ -1,8 +1,9 @@
 <?php
 
 echo "Hallo " . "Tim" . "!" . 22 . "\n";
-echo "Hallo Welt";
+echo "Hallo Welt\n";
 echo 42 . "\n";
+echo 123456789987654321 . "\n";
 
 if (false) {
     echo "IF BRANCH\n";

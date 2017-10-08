@@ -32,8 +32,11 @@
         ENUM_EL(OP_JMP,) \
         ENUM_EL(OP_JMPZ,) \
         ENUM_EL(OP_NOP,) \
+        ENUM_EL(OP_MAX_VALUE,)
 
 DECLARE_ENUM(Operator, ENUM_OPERATOR);
+
+typedef uint8_t codepoint_t;
 
 typedef struct Function {
     char* name;
@@ -42,7 +45,7 @@ typedef struct Function {
 
     size_t codesize;
     size_t codecapacity;
-    Operator* code;
+    codepoint_t* code;
 
     char** strs;
     uint16_t strlen;
@@ -54,7 +57,8 @@ typedef struct Function {
 } Function;
 
 typedef uint32_t RelAddr;
-_Static_assert(sizeof(RelAddr) == sizeof(Operator), "RelAddr must be == Operator in size");
+_Static_assert(sizeof(RelAddr) == sizeof(codepoint_t)*4, "RelAddr must be == 4 Operators in size");
+_Static_assert((codepoint_t) OP_MAX_VALUE == OP_MAX_VALUE, "OP must fit into codepoint_t");
 
 Function* create_function(char* name);
 void free_function(Function* fn);
@@ -64,5 +68,26 @@ Function* compile(Function* fn, AST* root);
 void compiletimeerror(char* fmt, ...);
 
 void print_code(Function* fn);
+
+
+static inline uint8_t fetch8(const codepoint_t* ip)
+{
+    return *ip;
+}
+
+static inline uint16_t fetch16(const codepoint_t* ip)
+{
+    return le16toh(*(uint16_t*)ip);
+}
+
+static inline uint32_t fetch32(const codepoint_t* ip)
+{
+    return le32toh(*(uint32_t*)ip);
+}
+
+static inline uint64_t fetch64(const codepoint_t* ip)
+{
+    return le64toh(*(uint64_t*)ip);
+}
 
 #endif //PHPINTERP_COMPILE_H
