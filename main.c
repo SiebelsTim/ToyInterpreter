@@ -8,9 +8,8 @@ int main(int argc, char** argv)
         return 1;
     }
     const char* filename = argv[1];
-    FILE* handle = fopen(filename, "r");
 
-    run_file(handle);
+    run_file(filename);
 
     return 0;
 }

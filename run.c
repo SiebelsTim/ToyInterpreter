@@ -32,6 +32,17 @@ noreturn void runtimeerror(char* fmt)
     abort();
 }
 
+noreturn void raise_fatal(Runtime* R, char* fmt, ...)
+{
+    printf("Fatal Error: ");
+    va_list ap;
+    va_start(ap, fmt);
+    vprintf(fmt, ap);
+    va_end(ap);
+    printf(" in %s:%zu\n", R->file, R->line);
+    abort();
+}
+
 
 static Variant* stackidx(Runtime* R, long idx)
 {
@@ -51,6 +62,8 @@ static Runtime* create_runtime()
     ret->stacksize = 0;
     ret->stack = calloc(ret->stackcapacity, sizeof(*ret->stack));
     ret->scope = create_scope();
+    ret->line = 0;
+    ret->file = NULL;
 
     return ret;
 }
@@ -64,6 +77,7 @@ static void destroy_runtime(Runtime* R)
     }
     free(R->stack);
     destroy_scope(R->scope);
+    free(R->file);
     free(R);
 }
 
@@ -195,10 +209,18 @@ static void run_call(Runtime* R, Function* fn)
     pop(R);
 
     Function* callee = find_function(fn, fnname);
+    if (!callee) {
+        raise_fatal(R, "Call to undefined function %s()", fnname);
+        free((void*)fnname);
+        return;
+    }
     free((void*)fnname);
-    assert(callee && "Function not found"); // TODO: print error
     const uint8_t param_count = fetch8(R->ip++);
-    assert(param_count == callee->paramlen && "param count mismatch"); // TODO: print error
+    if (param_count != callee->paramlen) {
+        raise_fatal(R, "Parameter number mismatch. %u expected, %u given",
+                    callee->paramlen, param_count);
+        return;
+    }
 
     Runtime* newruntime = create_runtime();
     for (int i = 0; i < param_count; ++i) {
@@ -451,13 +473,15 @@ void run_function(Runtime* R, Function* fn)
     }
 }
 
-void run_file(FILE* file) {
-    AST* ast = parse(file);
+void run_file(const char* filepath) {
+    FILE* handle = fopen(filepath, "r");
+    AST* ast = parse(handle);
 
     Function* fn = create_function(strdup("<pseudomain>"));
     compile(fn, ast);
 
     Runtime* R = create_runtime();
+    R->file = strdup(filepath);
     print_code(fn);
     run_function(R, fn);
     destroy_runtime(R);

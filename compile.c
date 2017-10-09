@@ -7,7 +7,6 @@
 #include "compile.h"
 #include "op_util.h"
 #include "array-util.h"
-#include "parse.h"
 
 DEFINE_ENUM(Operator, ENUM_OPERATOR);
 

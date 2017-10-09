@@ -36,9 +36,12 @@ typedef struct Runtime {
     codepoint_t* ip;
     Variant* stack;
     Scope* scope;
+
+    size_t line;
+    char* file;
 } Runtime;
 
-void run_file(FILE*);
+void run_file(const char*);
 void run_function(Runtime*, Function*);
 void runtimeerror(char* );
 Variant cpy_var(Variant var);
