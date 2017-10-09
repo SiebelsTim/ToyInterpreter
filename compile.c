@@ -98,6 +98,15 @@ static inline void try_strs_resize(Function* fn)
     }
 }
 
+static char* overtake_ast_str(AST* ast)
+{
+    assert(ast->val.str);
+    char* ret = ast->val.str;
+    ast->val.str = NULL;
+
+    return ret;
+}
+
 
 // Returns position of inserted op
 static inline size_t emitraw8(Function* fn, uint8_t op)
@@ -190,11 +199,16 @@ static void addfunction(Function* parent, Function* fn)
     parent->functions[parent->funlen++] = fn;
 }
 
+static void compile_string(Function* fn, AST* ast)
+{
+    emit(fn, OP_STR);
+    addstring(fn, overtake_ast_str(ast));
+}
+
 static void compile_function(Function* parent, AST* ast)
 {
     assert(ast->node1);
-    Function* fn = create_function(ast->val.str);
-    ast->val.str = NULL;
+    Function* fn = create_function(overtake_ast_str(ast));
     size_t paramcount = ast_list_count(ast->node1);
 
     fn->paramlen = (uint8_t) paramcount;
@@ -207,13 +221,11 @@ static void compile_function(Function* parent, AST* ast)
     AST* param = ast->node1->next;
     for (int i = 0; param; ++i, param = param->next) {
         assert(param->type == AST_ARGUMENT);
-        fn->params[i] = param->val.str;
-        param->val.str = NULL;
+        fn->params[i] = overtake_ast_str(param);
     }
 
     addfunction(parent, fn);
     compile(fn, ast->node2);
-
 
     emit(fn, OP_NULL); // Safeguard to guarantee that we have a return value
     emit(fn, OP_RETURN);
@@ -234,9 +246,7 @@ static void compile_call(Function* fn, AST* ast)
     }
 
     emit(fn, OP_STR); // function name
-    assert(ast->val.str);
-    addstring(fn, ast->val.str);
-    ast->val.str = NULL;
+    addstring(fn, overtake_ast_str(ast));
 
     emit(fn, OP_CALL);
     emitraw8(fn, argcount); // Number of parameters
@@ -260,6 +270,13 @@ static void compile_echostmt(Function* fn, AST* ast)
     emit(fn, OP_ECHO);
 }
 
+static void compile_html(Function* fn, AST* ast)
+{
+    emit(fn, OP_STR);
+    addstring(fn, overtake_ast_str(ast));
+    emit(fn, OP_ECHO);
+}
+
 static void compile_assignmentexpr(Function* fn, AST* ast)
 {
     assert(ast->type == AST_ASSIGNMENT);
@@ -267,8 +284,13 @@ static void compile_assignmentexpr(Function* fn, AST* ast)
     assert(ast->val.str);
     compile(fn, ast->node1);
     emit(fn, OP_ASSIGN);
-    addstring(fn, ast->val.str);
-    ast->val.str = NULL;
+    addstring(fn, overtake_ast_str(ast));
+}
+
+static void compile_varexpr(Function* fn, AST* ast)
+{
+    emit(fn, OP_LOOKUP);
+    addstring(fn, overtake_ast_str(ast));
 }
 
 static void compile_ifstmt(Function* fn, AST* ast)
@@ -390,6 +412,7 @@ static void compile_forstmt(Function* fn, AST* ast) {
     emit_replace32(fn, placeholder, (Operator) emit(fn, OP_NOP));
 }
 
+
 Function* compile(Function* fn, AST* ast)
 {
     switch (ast->type) {
@@ -413,10 +436,7 @@ Function* compile(Function* fn, AST* ast)
             compile_ifstmt(fn, ast);
             break;
         case AST_STRING:
-            emit(fn, OP_STR);
-            assert(ast->val.str);
-            addstring(fn, ast->val.str);
-            ast->val.str = NULL;
+            compile_string(fn, ast);
             break;
         case AST_BINOP:
             compile_binop(fn, ast);
@@ -438,20 +458,13 @@ Function* compile(Function* fn, AST* ast)
             emit(fn, OP_NULL);
             break;
         case AST_VAR:
-            emit(fn, OP_LOOKUP);
-            assert(ast->val.str);
-            addstring(fn, ast->val.str);
-            ast->val.str = NULL;
+            compile_varexpr(fn, ast);
             break;
         case AST_ASSIGNMENT:
             compile_assignmentexpr(fn, ast);
             break;
         case AST_HTML:
-            emit(fn, OP_STR);
-            assert(ast->val.str);
-            addstring(fn, ast->val.str);
-            ast->val.str = NULL;
-            emit(fn, OP_ECHO);
+            compile_html(fn, ast);
             break;
         case AST_WHILE:
             compile_whilestmt(fn, ast);
