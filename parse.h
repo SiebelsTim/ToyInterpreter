@@ -34,6 +34,7 @@ typedef struct AST {
         char* str;
         int64_t lint;
     } val;
+    lineno_t lineno;
     struct AST* node1;
     struct AST* node2;
     struct AST* node3;

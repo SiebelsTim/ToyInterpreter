@@ -9,11 +9,11 @@
 
 DEFINE_ENUM(ASTTYPE, ENUM_ASTTYPE);
 
-#define EXP0(type) new_ast(type, NULL, NULL, NULL, NULL)
-#define EXP1(type, one) new_ast(type, one, NULL, NULL, NULL)
-#define EXP2(type, one, two) new_ast(type, one, two, NULL, NULL)
-#define EXP3(type, one, two, three) new_ast(type, one, two, three, NULL)
-#define EXP4(type, one, two, three, four) new_ast(type, one, two, three, four)
+#define EXP0(type) new_ast(type, S->lineno, NULL, NULL, NULL, NULL)
+#define EXP1(type, one) new_ast(type, S->lineno, one, NULL, NULL, NULL)
+#define EXP2(type, one, two) new_ast(type, S->lineno, one, two, NULL, NULL)
+#define EXP3(type, one, two, three) new_ast(type, S->lineno, one, two, three, NULL)
+#define EXP4(type, one, two, three, four) new_ast(type, S->lineno, one, two, three, four)
 
 static int get_next_token(State* S)
 {
@@ -84,9 +84,8 @@ static inline bool expect_one_of(State* S, int count, ...)
     return false;
 }
 
-
-
-static AST* new_ast(ASTTYPE type, AST* one, AST* two, AST* three, AST* four)
+static AST* new_ast(ASTTYPE type, lineno_t lineno, AST* one, AST* two, AST* three,
+                    AST* four)
 {
     AST* ret = malloc(sizeof(AST));
 
@@ -97,6 +96,7 @@ static AST* new_ast(ASTTYPE type, AST* one, AST* two, AST* three, AST* four)
     ret->node4 = four;
     ret->next = NULL;
     ret->val.str = NULL;
+    ret->lineno = lineno;
 
     return ret;
 }

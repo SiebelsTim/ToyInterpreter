@@ -17,6 +17,7 @@ Function* create_function(char* name)
     ret->name = name ? name : strdup("<unnamed>");
     ret->paramlen = 0;
     ret->params = NULL;
+    ret->lineno_defined = 0;
 
     ret->codesize = 0;
     ret->codecapacity = 8;
@@ -208,6 +209,7 @@ static void compile_function(Function* parent, AST* ast)
 {
     assert(ast->node1);
     Function* fn = create_function(overtake_ast_str(ast));
+    fn->lineno_defined = ast->lineno;
     size_t paramcount = ast_list_count(ast->node1);
 
     fn->paramlen = (uint8_t) paramcount;
@@ -482,7 +484,9 @@ void print_code(Function* fn)
 {
     codepoint_t* ip = fn->code;
     int64_t lint;
-    fprintf(stderr, "Function: %s\n-----------------------\n", fn->name);
+    fprintf(stderr, "Function: %s (line %u)\n", fn->name, fn->lineno_defined);
+
+    fprintf(stderr, "\n-----------------------\n");
     while ((size_t)(ip - fn->code) < fn->codesize) {
         fprintf(stderr, "%04lx: ", ip - fn->code);
         Operator op = (Operator)*ip;
@@ -512,7 +516,7 @@ void print_code(Function* fn)
                 break;
             case OP_LONG:
                 lint = (int64_t) fetch64(ip);
-                *((uint64_t*)(bytes + 1)) = *(uint64_t*)ip;
+                *(uint64_t*)(bytes + 1) = *(uint64_t*)ip;
                 ip += 8;
                 chars_written += fprintf(stderr, "%" PRId64, lint);
                 break;

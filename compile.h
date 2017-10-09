@@ -40,6 +40,7 @@ typedef uint8_t codepoint_t;
 
 typedef struct Function {
     char* name;
+    lineno_t lineno_defined;
     uint8_t paramlen;
     char** params;
 
@@ -54,6 +55,8 @@ typedef struct Function {
     struct Function** functions;
     size_t funlen;
     size_t funcapacity;
+
+    lineno_t lastline;
 } Function;
 
 typedef uint32_t RelAddr;

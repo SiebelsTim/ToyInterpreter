@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 typedef enum TOKEN {
     TK_OPENTAG = 256, // Make them outside ascii range
@@ -49,9 +50,11 @@ typedef enum VALTYPE {
     ERROR
 } VALTYPE;
 
+typedef uint32_t lineno_t;
+
 typedef struct State {
     enum MODE mode;
-    int lineno;
+    lineno_t lineno;
     FILE* file;
     int token;
     int lexchar;
