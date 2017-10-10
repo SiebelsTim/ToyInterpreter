@@ -50,7 +50,7 @@ void print_ast(AST*, int level);
 
 void destroy_ast(AST*);
 
-static inline char* overtake_str(State* S)
+static inline char* overtake_str(Lexer* S)
 {
     assert(S->val == MALLOCSTR || S->val == STATICSTR);
 

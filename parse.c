@@ -17,13 +17,13 @@ DEFINE_ENUM(ASTTYPE, ENUM_ASTTYPE);
 #define EXP3(type, one, two, three) new_ast(type, S->lineno, one, two, three, NULL)
 #define EXP4(type, one, two, three, four) new_ast(type, S->lineno, one, two, three, four)
 
-static int get_next_token(State* S)
+static int get_next_token(Lexer* S)
 {
     S->token = get_token(S);
     return S->token;
 }
 
-_Noreturn static inline void parseerror(State* S, char* fmt, ...)
+_Noreturn static inline void parseerror(Lexer* S, char* fmt, ...)
 {
     va_list ap;
     char msgbuf[256];
@@ -41,7 +41,7 @@ _Noreturn static inline void parseerror(State* S, char* fmt, ...)
     abort();
 }
 
-static inline bool accept(State* S, int tok)
+static inline bool accept(Lexer* S, int tok)
 {
     if (S->token == tok) {
         get_next_token(S);
@@ -51,7 +51,7 @@ static inline bool accept(State* S, int tok)
     return false;
 }
 
-static inline bool expect(State* S, int tok)
+static inline bool expect(Lexer* S, int tok)
 {
     if (!accept(S, tok)) {
         parseerror(S, "Expected %s, got %s", get_token_name(tok), get_token_name(S->token));
@@ -61,7 +61,7 @@ static inline bool expect(State* S, int tok)
     return true;
 }
 
-static inline bool expect_one_of(State* S, int count, ...)
+static inline bool expect_one_of(Lexer* S, int count, ...)
 {
     va_list ap;
     va_start(ap, count);
@@ -115,16 +115,16 @@ static AST* ast_list_append(AST *block, AST *ast)
     return block;
 }
 
-static AST* parse_expr(State* S);
-static AST* parse_echostmt(State* S);
-static AST* parse_ifstmt(State* S);
-static AST* parse_whilestmt(State* S);
-static AST* parse_forstmt(State* S);
-static AST* parse_blockstmt(State* S);
-static AST* parse_function(State* S);
-static AST* parse_paramlist(State* S);
+static AST* parse_expr(Lexer* S);
+static AST* parse_echostmt(Lexer* S);
+static AST* parse_ifstmt(Lexer* S);
+static AST* parse_whilestmt(Lexer* S);
+static AST* parse_forstmt(Lexer* S);
+static AST* parse_blockstmt(Lexer* S);
+static AST* parse_function(Lexer* S);
+static AST* parse_paramlist(Lexer* S);
 
-static AST* parse_stmt(State* S)
+static AST* parse_stmt(Lexer* S)
 {
     if (accept(S, TK_ECHO)) {
         return parse_echostmt(S);
@@ -150,7 +150,7 @@ static AST* parse_stmt(State* S)
     return ret;
 }
 
-static AST* parse_varexpr(State* S)
+static AST* parse_varexpr(Lexer* S)
 {
     if (S->token == TK_VAR) {
         AST* ret;
@@ -167,7 +167,7 @@ static AST* parse_varexpr(State* S)
     return NULL;
 }
 
-static AST* parse_primary(State* S)
+static AST* parse_primary(Lexer* S)
 {
     AST* ret;
     if (S->token == TK_STRING) {
@@ -250,7 +250,7 @@ static AST* parse_primary(State* S)
 }
 
 
-static AST* parse_expr(State* S)
+static AST* parse_expr(Lexer* S)
 {
 
     AST* ret = parse_primary(S);
@@ -326,7 +326,7 @@ static AST* parse_expr(State* S)
     return ret;
 }
 
-static AST* parse_echostmt(State* S)
+static AST* parse_echostmt(Lexer* S)
 {
     AST* expr = parse_expr(S);
 
@@ -336,7 +336,7 @@ static AST* parse_echostmt(State* S)
     return ret;
 }
 
-static AST* parse_blockstmt(State* S)
+static AST* parse_blockstmt(Lexer* S)
 {
     AST* ret = EXP0(AST_LIST);
     while (S->token != '}') {
@@ -347,7 +347,7 @@ static AST* parse_blockstmt(State* S)
     return ret;
 }
 
-static AST* parse_ifstmt(State* S)
+static AST* parse_ifstmt(Lexer* S)
 {
     expect(S, '(');
     AST* expr = parse_expr(S);
@@ -364,7 +364,7 @@ static AST* parse_ifstmt(State* S)
     return ret;
 }
 
-static AST* parse_whilestmt(State* S)
+static AST* parse_whilestmt(Lexer* S)
 {
     expect(S, '(');
     AST* expr = parse_expr(S);
@@ -375,7 +375,7 @@ static AST* parse_whilestmt(State* S)
     return EXP2(AST_WHILE, expr, body);
 }
 
-static AST* parse_forstmt(State* S)
+static AST* parse_forstmt(Lexer* S)
 {
     expect(S, '(');
     AST* init = parse_expr(S);
@@ -389,7 +389,7 @@ static AST* parse_forstmt(State* S)
     return EXP4(AST_FOR, init, condition, post, body);
 }
 
-static AST* parse_identifier(State* S)
+static AST* parse_identifier(Lexer* S)
 {
     // This function is used so we can get better line numbers for error messages
     if (S->token != TK_IDENTIFIER) {
@@ -404,7 +404,7 @@ static AST* parse_identifier(State* S)
     return ret;
 }
 
-static AST* parse_arglist(State* S)
+static AST* parse_arglist(Lexer* S)
 {
     AST* ret = EXP0(AST_LIST);
 
@@ -429,7 +429,7 @@ static AST* parse_arglist(State* S)
     return ret;
 }
 
-static AST* parse_paramlist(State* S)
+static AST* parse_paramlist(Lexer* S)
 {
     AST* ret = EXP0(AST_LIST);
 
@@ -449,7 +449,7 @@ static AST* parse_paramlist(State* S)
     return ret;
 }
 
-static AST* parse_function(State* S)
+static AST* parse_function(Lexer* S)
 {
     if (S->token != TK_IDENTIFIER) {
         parseerror(S, "Expected IDENTIFIER, %s given.", get_token_name(S->token));
@@ -468,7 +468,7 @@ static AST* parse_function(State* S)
 
 AST* parse(FILE* file)
 {
-    State* S = new_state(file);
+    Lexer* S = create_lexer(file);
     AST* ret = EXP0(AST_LIST);
     get_next_token(S); // init
     while (S->token != TK_END) {
@@ -484,7 +484,7 @@ AST* parse(FILE* file)
 
         ast_list_append(ret, parse_stmt(S));
     }
-    destroy_state(S);
+    destroy_lexer(S);
 
     return ret;
 }

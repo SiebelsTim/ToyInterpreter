@@ -34,7 +34,7 @@ static int is_whitespace(int c)
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 }
 
-static int get_next_char(State* S)
+static int get_next_char(Lexer* S)
 {
     S->lexchar = fgetc(S->file);
     if (S->lexchar == '\n') {
@@ -69,7 +69,7 @@ static inline int is_str(int c)
     return isalnum(c) || c == '_';
 }
 
-static TOKEN syntax_error(State* S, char* fmt, ...)
+static TOKEN syntax_error(Lexer* S, char* fmt, ...)
 {
     va_list ap;
     char msgbuf[256];
@@ -103,7 +103,7 @@ static char* str_append(char* str, char append, size_t* size, size_t* capacity)
     return str;
 }
 
-static char* fetch_str(State* S, int (*proceed_condition)(int))
+static char* fetch_str(Lexer* S, int (*proceed_condition)(int))
 {
     size_t pos = 0;
     size_t capacity = 5;
@@ -119,7 +119,7 @@ static char* fetch_str(State* S, int (*proceed_condition)(int))
 }
 
 
-static int lex_ident(State* S)
+static int lex_ident(Lexer* S)
 {
     char* str = fetch_str(S, is_str);
     if (!str) {
@@ -158,7 +158,7 @@ static int lex_ident(State* S)
     return ret;
 }
 
-static TOKEN lex_var(State* S)
+static TOKEN lex_var(Lexer* S)
 {
     assert(is_var_start(S->lexchar));
     get_next_char(S); // Skip $
@@ -168,7 +168,7 @@ static TOKEN lex_var(State* S)
     return TK_VAR;
 }
 
-static TOKEN lex_str(State* S)
+static TOKEN lex_str(Lexer* S)
 {
     assert(S->lexchar == '"');
     int escape = false;
@@ -224,7 +224,7 @@ static TOKEN lex_str(State* S)
     return TK_STRING;
 }
 
-int lex_num(State* S)
+int lex_num(Lexer* S)
 {
     char* numstr = fetch_str(S, isdigit);
     int64_t n = (int64_t) strtoll(numstr, NULL, 10);
@@ -243,7 +243,7 @@ int lex_num(State* S)
             return (expected);                                                 \
     }
 
-int get_token(State* S)
+int get_token(Lexer* S)
 {
     if (S->lexchar == EOF) {
         return TK_END;
@@ -347,9 +347,9 @@ int get_token(State* S)
     return c;
 }
 
-State* new_state(FILE* file)
+Lexer* create_lexer(FILE *file)
 {
-    State* ret = malloc(sizeof(State));
+    Lexer* ret = malloc(sizeof(Lexer));
     if (!ret) {
         perror("malloc for state failed.");
         return NULL;
@@ -362,7 +362,7 @@ State* new_state(FILE* file)
     return ret;
 }
 
-int destroy_state(State* S)
+int destroy_lexer(Lexer *S)
 {
     fclose(S->file);
     if (S->val == MALLOCSTR) {
@@ -420,7 +420,7 @@ char* get_token_name(int tok)
     return "unknown";
 }
 
-void print_tokenstream(State* S)
+void print_tokenstream(Lexer* S)
 {
     int tok;
     while ((tok = get_token(S)) != TK_END) {

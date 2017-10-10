@@ -52,7 +52,7 @@ typedef enum VALTYPE {
 
 typedef uint32_t lineno_t;
 
-typedef struct State {
+typedef struct Lexer {
     enum MODE mode;
     lineno_t lineno;
     FILE* file;
@@ -64,16 +64,16 @@ typedef struct State {
         int64_t lint;
     } u;
     char* error;
-} State;
+} Lexer;
 
-State* new_state(FILE*);
-int destroy_state(State*);
+Lexer* create_lexer(FILE *);
+int destroy_lexer(Lexer *);
 
-int get_token(State*);
+int get_token(Lexer*);
 char* get_token_name(int);
-void print_tokenstream(State*);
+void print_tokenstream(Lexer*);
 
-static inline void state_set_string(State* S, char* str)
+static inline void state_set_string(Lexer* S, char* str)
 {
     if (S->val == MALLOCSTR) {
         free(S->u.string);
@@ -83,7 +83,7 @@ static inline void state_set_string(State* S, char* str)
     S->u.string = str;
 }
 
-static inline void state_set_long(State* S, int64_t n)
+static inline void state_set_long(Lexer* S, int64_t n)
 {
     if (S->val == MALLOCSTR) {
         free(S->u.string);
