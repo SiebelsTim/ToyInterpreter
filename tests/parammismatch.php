@@ -1,7 +1,7 @@
 <?php
 
-function f($a) {
+function f($a, $b) {
 
 }
 
-f();
+f("one", 2, 3);

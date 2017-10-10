@@ -421,6 +421,7 @@ static AST* parse_arglist(State* S)
         if (S->token != ',') {
             break;
         }
+        get_next_token(S);
     }
 
     return ret;
@@ -440,6 +441,7 @@ static AST* parse_paramlist(State* S)
         if (S->token != ',') {
             break;
         }
+        get_next_token(S);
     }
 
     return ret;
