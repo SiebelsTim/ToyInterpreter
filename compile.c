@@ -527,7 +527,7 @@ void print_code(Function* fn)
             case OP_BIN:
                 *(uint16_t*)(bytes + 1) = fetch16(ip);
                 chars_written += fprintf(stderr, "%s", get_token_name(fetch16(ip)));
-                ++ip;
+                ip += 2;
                 break;
             case OP_ASSIGN:
                 *(uint16_t*)(bytes + 1) = fetch16(ip);
