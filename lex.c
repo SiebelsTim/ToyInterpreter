@@ -362,15 +362,13 @@ Lexer* create_lexer(FILE *file)
     return ret;
 }
 
-int destroy_lexer(Lexer *S)
+void destroy_lexer(Lexer *S)
 {
     fclose(S->file);
     if (S->val == MALLOCSTR) {
         free(S->u.string);
     }
     free(S);
-
-    return 1;
 }
 
 static char* tokennames[] = {

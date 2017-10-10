@@ -67,7 +67,7 @@ typedef struct Lexer {
 } Lexer;
 
 Lexer* create_lexer(FILE *);
-int destroy_lexer(Lexer *);
+void destroy_lexer(Lexer *);
 
 int get_token(Lexer*);
 char* get_token_name(int);
