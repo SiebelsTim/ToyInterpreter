@@ -1,0 +1,22 @@
+language: cpp
+
+cache: ccache
+
+os: linux
+
+before_install:
+    - sudo apt-get -y -qq update
+    - sudo apt-get -y install php5
+
+compiler:
+    - clang
+    - gcc
+
+env:
+    - BUILD_TYPE=Release
+    - BUILD_TYPE=Debug
+
+script:
+    - cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} .
+    - make -j3
+    - ./tests/run

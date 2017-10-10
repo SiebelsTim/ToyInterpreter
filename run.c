@@ -343,6 +343,7 @@ static void run_binop(Runtime* R, int op)
                 break;
             default:
                 assert(false);
+                return;
         }
         pushlong(R, result);
         return;

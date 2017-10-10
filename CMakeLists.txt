@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.1)
 project(PHPInterp)
 
-set(CMAKE_C_COMPILER  "/usr/bin/clang")
 set(CMAKE_C_STANDARD 11)
 
 if (NOT MSVC)
