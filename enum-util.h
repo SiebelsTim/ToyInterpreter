@@ -9,6 +9,8 @@
 #define DEFINE_ENUM(NAME, ENUM) const char* get_##NAME##_name(NAME val) {\
   switch (val) {\
     ENUM(ENUM_CASEELEMENT)\
+	default: \
+		assert(false); \
   } \
 }
 

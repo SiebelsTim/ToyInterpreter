@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "enum-util.h"
 #include "compile.h"
+#include "crossplatform/stdnoreturn.h"
 
 #define ENUM_VARIANTTYPE(ELEMENT) \
     ELEMENT(TYPE_UNDEF, =0)         \
@@ -43,7 +44,7 @@ typedef struct Runtime {
 
 void run_file(const char*);
 void run_function(Runtime*, Function*);
-void runtimeerror(char* );
+_Noreturn void runtimeerror(char* );
 Variant cpy_var(Variant var);
 void free_var(Variant var);
 

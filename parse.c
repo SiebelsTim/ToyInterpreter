@@ -1,8 +1,10 @@
 #include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include <memory.h>
 #include <stdbool.h>
-#include <stdnoreturn.h>
+#include "crossplatform/stdnoreturn.h"
+#include <stdarg.h>
 #include <inttypes.h>
 #include "parse.h"
 #include "util.h"
@@ -21,7 +23,7 @@ static int get_next_token(State* S)
     return S->token;
 }
 
-noreturn static inline void parseerror(State* S, char* fmt, ...)
+_Noreturn static inline void parseerror(State* S, char* fmt, ...)
 {
     va_list ap;
     char msgbuf[256];

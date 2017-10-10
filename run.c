@@ -1,9 +1,12 @@
 #include <stdlib.h>
-#include <stdnoreturn.h>
 #include <memory.h>
 #include <assert.h>
 #include <stdbool.h>
-#include <lzma.h>
+#include <stdarg.h>
+#include <inttypes.h>
+#include <string.h>
+#include "crossplatform/std.h"
+#include "crossplatform/endian.h"
 #include "run.h"
 #include "scope.h"
 #include "array-util.h"
@@ -25,14 +28,14 @@ void free_var(Variant var)
     }
 }
 
-noreturn void runtimeerror(char* fmt)
+_Noreturn void runtimeerror(char* fmt)
 {
     printf("Runtime Error: ");
     puts(fmt);
     abort();
 }
 
-noreturn void raise_fatal(Runtime* R, char* fmt, ...)
+_Noreturn void raise_fatal(Runtime* R, char* fmt, ...)
 {
     printf("Fatal Error: ");
     va_list ap;

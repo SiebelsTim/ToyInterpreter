@@ -1,5 +1,6 @@
 #include <memory.h>
 #include <assert.h>
+#include "crossplatform/std.h"
 #include "util.h"
 
 static char escape_chars[] = {

@@ -1,5 +1,6 @@
 #include <stdlib.h>
-#include <stdnoreturn.h>
+#include <string.h>
+#include <stdarg.h>
 #include <assert.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -58,7 +59,7 @@ void free_function(Function* fn)
     free(fn);
 }
 
-noreturn void compiletimeerror(char* fmt, ...)
+_Noreturn void compiletimeerror(char* fmt, ...)
 {
     va_list ap;
     char msgbuf[256];

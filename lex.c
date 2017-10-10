@@ -3,6 +3,8 @@
 #include <memory.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <stdarg.h>
+#include <string.h>
 #include "lex.h"
 #include "util.h"
 
@@ -203,14 +205,16 @@ static TOKEN lex_str(State* S)
     str = str_append(str, '\0', &pos, &capacity);
 
     if (S->lexchar != '"') {
-        char errormsg[strlen("Expected \", got ")+4];
+        char* errormsg = malloc((strlen("Expected \", got ") + 4) * sizeof(char));
         if (S->lexchar == EOF) {
             sprintf(errormsg, "Expected \", got %s", "EOF");
         } else {
             sprintf(errormsg, "Expected \", got %c", S->lexchar);
         }
         free(str);
-        return syntax_error(S, errormsg);
+        TOKEN ret = syntax_error(S, errormsg);
+        free(errormsg);
+        return ret;
     }
 
     state_set_string(S, str);

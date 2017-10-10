@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "parse.h"
+#include "crossplatform/endian.h"
+#include "crossplatform/stdnoreturn.h"
+#include "crossplatform/std.h"
 
 #define ENUM_OPERATOR(ENUM_EL) \
         ENUM_EL(OP_INVALID, = 0) \
@@ -68,7 +71,7 @@ void free_function(Function* fn);
 
 Function* compile(Function* fn, AST* root);
 
-void compiletimeerror(char* fmt, ...);
+_Noreturn void compiletimeerror(char* fmt, ...);
 
 void print_code(Function* fn);
 

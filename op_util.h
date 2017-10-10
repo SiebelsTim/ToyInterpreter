@@ -114,8 +114,8 @@ static inline size_t op_len(Operator op)
 
 static inline void swap_adjacent_ops(codepoint_t* op1, codepoint_t* op2)
 {
-    size_t len1 = op_len((Operator) *op1);
-    size_t len2 = op_len((Operator) *op2);
+    size_t len1 = op_len((Operator)*op1);
+    size_t len2 = op_len((Operator)*op2);
     assert(op1 + len1 == op2 || op2 + len2 == op1);
     if (len1 == len2) {
         while (len1--) {
@@ -124,19 +124,19 @@ static inline void swap_adjacent_ops(codepoint_t* op1, codepoint_t* op2)
             op1[len1] = tmp;
         }
     } else if (len1 > len2) {
-        codepoint_t cpy[len1];
-        memcpy(cpy, op1, sizeof(cpy));
+        const size_t cpy_len = len1 * sizeof(codepoint_t);
+        codepoint_t* cpy = malloc(cpy_len);
+        memcpy(cpy, op1, cpy_len);
         for (size_t i = 0; i < len2; ++i) {
             op1[i] = op2[i];
         }
-        for (size_t i = 0; i < arrcount(cpy); ++i) {
+        for (size_t i = 0; i < cpy_len / sizeof(*cpy); ++i) {
             op1[len2 + i] = cpy[i];
         }
     } else {
         swap_adjacent_ops(op2, op1);
     }
 }
-
 
 static inline void insert_nop(codepoint_t* op)
 {
