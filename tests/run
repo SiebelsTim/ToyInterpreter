@@ -1,18 +1,21 @@
 #!/usr/bin/php
 <?php
 
-$dirit = new RecursiveDirectoryIterator(__DIR__);
+$binary = __DIR__ . '/../PHPInterp';
+
+$dirit = new RecursiveDirectoryIterator('.');
 $it = new RecursiveIteratorIterator($dirit);
 
 foreach($it as $file) {
       if (!preg_match('/.php$/', $file->getFilename()))
           continue;
 
+    $filepath = $file->getPath() . '/' . $file->getFilename();
     echo "FILE: ", $file->getFilename(), PHP_EOL;
     echo "=================================", PHP_EOL;
-    $out = substr($file->getRealPath(), 0, -4) . '.out';
-    $expect = substr($file->getRealPath(), 0, -4) . '.expect';
-    system(__DIR__ . '/../PHPInterp ' . escapeshellarg($file->getRealPath()) . ' > ' . escapeshellarg($out));
+    $out = substr($file->getRealpath(), 0, -4) . '.out';
+    $expect = substr($file->getRealpath(), 0, -4) . '.expect';
+    system($binary . ' '. escapeshellarg($filepath) . ' > ' . escapeshellarg($out));
     $ret = null;
     system('diff -u ' . escapeshellarg($out) . ' ' . escapeshellarg($expect), $ret);
     if ($ret !== 0) {

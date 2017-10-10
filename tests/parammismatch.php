@@ -1,5 +1,7 @@
 <?php
 
-function f($a) {}
+function f($a) {
+
+}
 
 f();

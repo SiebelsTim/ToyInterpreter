@@ -387,6 +387,21 @@ static AST* parse_forstmt(State* S)
     return EXP4(AST_FOR, init, condition, post, body);
 }
 
+static AST* parse_identifier(State* S)
+{
+    // This function is used so we can get better line numbers for error messages
+    if (S->token != TK_IDENTIFIER) {
+        expect(S, TK_IDENTIFIER); // Raise error
+        return NULL;
+    }
+
+    AST* ret = EXP0(AST_IDENTIFIER);
+    ret->val.str = overtake_str(S);
+    expect(S, TK_IDENTIFIER); // Skip
+
+    return ret;
+}
+
 static AST* parse_arglist(State* S)
 {
     AST* ret = EXP0(AST_LIST);
@@ -436,15 +451,13 @@ static AST* parse_function(State* S)
         parseerror(S, "Expected IDENTIFIER, %s given.", get_token_name(S->token));
         return NULL;
     }
-    char* name = overtake_str(S);
-    expect(S, TK_IDENTIFIER); // Skip
+    AST* name = parse_identifier(S);
     expect(S, '(');
     AST* parameters = parse_arglist(S);
     expect(S, ')');
     AST* body = parse_stmt(S);
 
-    AST* ret = EXP2(AST_FUNCTION, parameters, body);
-    ret->val.str = name;
+    AST* ret = EXP3(AST_FUNCTION, name, parameters, body);
 
     return ret;
 }

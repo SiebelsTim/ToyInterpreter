@@ -21,7 +21,8 @@
            ENUM_EL(AST_VAR,)     \
            ENUM_EL(AST_ASSIGNMENT,) \
            ENUM_EL(AST_FUNCTION,) \
-           ENUM_EL(AST_ARGUMENT,)    \
+           ENUM_EL(AST_ARGUMENT,)  \
+           ENUM_EL(AST_IDENTIFIER, )  \
            ENUM_EL(AST_CALL,) \
            ENUM_EL(AST_RETURN,) \
            ENUM_EL(AST_HTML,)    \

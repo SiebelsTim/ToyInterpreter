@@ -207,10 +207,13 @@ static void compile_string(Function* fn, AST* ast)
 
 static void compile_function(Function* parent, AST* ast)
 {
-    assert(ast->node1);
-    Function* fn = create_function(overtake_ast_str(ast));
-    fn->lineno_defined = ast->lineno;
-    size_t paramcount = ast_list_count(ast->node1);
+    assert(ast->node1 && ast->node2 && ast->node3);
+    AST* const name = ast->node1;
+    AST* const params = ast->node2;
+    AST* const body = ast->node3;
+    Function* fn = create_function(overtake_ast_str(name));
+    fn->lineno_defined = name->lineno;
+    size_t paramcount = ast_list_count(params);
 
     fn->paramlen = (uint8_t) paramcount;
     if (paramcount != fn->paramlen) {
@@ -219,14 +222,14 @@ static void compile_function(Function* parent, AST* ast)
     }
 
     fn->params = malloc(sizeof(*fn->params) * paramcount);
-    AST* param = ast->node1->next;
+    AST* param = params->next;
     for (int i = 0; param; ++i, param = param->next) {
         assert(param->type == AST_ARGUMENT);
         fn->params[i] = overtake_ast_str(param);
     }
 
     addfunction(parent, fn);
-    compile(fn, ast->node2);
+    compile(fn, body);
 
     emit(fn, OP_NULL); // Safeguard to guarantee that we have a return value
     emit(fn, OP_RETURN);
