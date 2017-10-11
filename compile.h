@@ -7,6 +7,7 @@
 #include "crossplatform/endian.h"
 #include "crossplatform/stdnoreturn.h"
 #include "crossplatform/std.h"
+#include "stack.h"
 
 #define ENUM_OPERATOR(ENUM_EL) \
         ENUM_EL(OP_INVALID, = 0) \
@@ -51,8 +52,6 @@ typedef struct State {
     size_t funcapacity;
 } State;
 
-typedef uint8_t codepoint_t;
-
 typedef struct Function {
     lineno_t lineno_defined;
     uint8_t paramlen;
@@ -74,8 +73,6 @@ enum FUNCTION_TYPE {
     CFUNCTION
 };
 
-struct Runtime;
-typedef void (*CFunction(struct Runtime*));
 typedef struct FunctionWrapper {
     char* name;
     enum FUNCTION_TYPE type;

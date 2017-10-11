@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <memory.h>
 
 static bool try_resize(size_t* capacity, size_t size, void** ptr,

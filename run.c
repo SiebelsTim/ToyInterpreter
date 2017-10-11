@@ -9,11 +9,10 @@
 #include "crossplatform/endian.h"
 #include "run.h"
 #include "scope.h"
-#include "array-util.h"
+#include "util.h"
+#include "builtins/std.h"
 #include "compile.h"
 
-
-DEFINE_ENUM(VARIANTTYPE, ENUM_VARIANTTYPE);
 
 Variant cpy_var(Variant var)
 {
@@ -51,16 +50,6 @@ _Noreturn void raise_fatal(Runtime* R, char* fmt, ...)
 }
 
 
-static Variant* stackidx(Runtime* R, long idx)
-{
-    if (idx < 0) {
-        idx = R->stacksize + idx;
-    }
-
-    assert(idx < (int)R->stacksize && idx >= 0);
-    return &R->stack[idx];
-}
-
 static Runtime* create_runtime(State* S)
 {
     Runtime* ret = malloc(sizeof(Runtime));
@@ -87,225 +76,6 @@ static void destroy_runtime(Runtime* R)
     destroy_scope(R->scope);
     free(R->file);
     free(R);
-}
-
-static inline void try_stack_resize(Runtime* R)
-{
-    try_resize(&R->stackcapacity, R->stacksize, (void*)&R->stack,
-               sizeof(*R->stack), runtimeerror);
-}
-
-static void push(Runtime* R, Variant val)
-{
-    try_stack_resize(R);
-    R->stack[R->stacksize++] = cpy_var(val);
-}
-
-static inline Variant* top(Runtime* R)
-{
-    assert(R->stacksize > 0);
-    return stackidx(R, -1);
-}
-
-static inline void popn(Runtime *R, size_t count) {
-    for (size_t i = 0; i < count; ++i) {
-        Variant* ret = top(R);
-
-        free_var(*ret);
-
-        R->stacksize--;
-        assert(R->stacksize >= 0);
-    }
-}
-
-static inline void pop(Runtime* R) {
-    popn(R, 1);
-}
-
-static inline void pushstr(Runtime* R, char* str)
-{
-    Variant var;
-    var.type = TYPE_STRING;
-    var.u.str = str;
-    push(R, var);
-}
-
-
-static inline void pushlong(Runtime* R, int64_t n)
-{
-    Variant var;
-    var.type = TYPE_LONG;
-    var.u.lint = n;
-    push(R, var);
-}
-
-static inline void pushbool(Runtime* R, bool b)
-{
-    Variant var;
-    var.type = TYPE_BOOL;
-    var.u.boolean = b;
-    push(R, var);
-}
-
-static inline void pushnull(Runtime* R)
-{
-    Variant var;
-    var.type = TYPE_NULL;
-    push(R, var);
-}
-
-static inline void pushfunction(Runtime* R, Function* fn)
-{
-    Variant var;
-    var.type = TYPE_FUNCTION;
-    var.u.function = fn;
-    push(R, var);
-}
-
-static inline void pushcfunction(Runtime* R, CFunction* fn)
-{
-    Variant var;
-    var.type = TYPE_CFUNCTION;
-    var.u.cfunction = fn;
-    push(R, var);
-}
-
-static char* vartostring(Variant var)
-{
-    char* buf;
-    switch (var.type) {
-        case TYPE_STRING:
-            assert(var.u.str);
-            return strdup(var.u.str);
-        case TYPE_LONG:
-            buf = malloc(sizeof(char) * 20); // Let this be "enough"
-            snprintf(buf, sizeof(char) * 20, "%" PRId64, var.u.lint);
-            return buf;
-        case TYPE_UNDEF:
-            return strdup("<UNDEFINED>");
-        case TYPE_NULL:
-            return strdup("<null>");
-        case TYPE_BOOL:
-            return var.u.boolean ? strdup("1") : strdup("");
-        case TYPE_FUNCTION:
-        case TYPE_CFUNCTION:
-            return strdup("function");
-        case TYPE_MAX_VALUE:
-            assert(false && "Undefined Type given");
-            break;
-    }
-
-    runtimeerror("Assertion failed: May not reach end of tostring function.");
-    return NULL;
-}
-
-static char* tostring(Runtime* R, int idx)
-{
-    return vartostring(*stackidx(R, idx));
-}
-
-static int64_t vartolong(Variant var)
-{
-    long long ll = 0;
-    switch (var.type) {
-        case TYPE_UNDEF:
-        case TYPE_NULL:
-            return 0;
-        case TYPE_BOOL:
-            return var.u.boolean;
-        case TYPE_STRING:
-            ll = strtoll(var.u.str, NULL, 10);
-            int64_t lint = (int64_t) ll;
-            assert(ll == lint);
-            return lint;
-        case TYPE_LONG:
-            return var.u.lint;
-        case TYPE_FUNCTION:
-        case TYPE_CFUNCTION:
-            return 0;
-        case TYPE_MAX_VALUE:
-            assert(false && "Undefined Type given");
-            break;
-    }
-
-    runtimeerror("tolong for undefined value.");
-    return 0;
-}
-
-static int64_t tolong(Runtime* R, int idx)
-{
-    return vartolong(*stackidx(R, idx));
-}
-
-static bool vartobool(Variant var)
-{
-    switch (var.type) {
-        case TYPE_UNDEF:
-        case TYPE_NULL:
-            return false;
-        case TYPE_LONG:
-            return var.u.lint != 0;
-        case TYPE_BOOL:
-            return var.u.boolean;
-        case TYPE_STRING:
-            if (var.u.str[0] == '\0' || (var.u.str[0] == '0' && var.u.str[1] == '\0')) {
-                return false;
-            } else {
-                return true;
-            }
-        case TYPE_FUNCTION:
-        case TYPE_CFUNCTION:
-            return false;
-        case TYPE_MAX_VALUE:
-            assert(false && "Undefined Type given");
-            break;
-    }
-
-    assert(false);
-    return false;
-}
-
-static bool tobool(Runtime* R, int idx)
-{
-    return vartobool(*stackidx(R, idx));
-}
-
-static Variant vartotype(Variant var, VARIANTTYPE type)
-{
-    if (var.type == type) {
-        return cpy_var(var);
-    }
-
-    Variant ret = {.type = TYPE_UNDEF, .u.lint = 0};
-    switch (type) {
-        case TYPE_STRING:
-            ret.type = TYPE_STRING;
-            ret.u.str = vartostring(var);
-            break;
-        case TYPE_LONG:
-            ret.type = TYPE_LONG;
-            ret.u.lint = vartolong(var);
-            break;
-        case TYPE_NULL:
-            ret.type = TYPE_NULL;
-            break;
-        case TYPE_UNDEF:
-            ret.type = TYPE_UNDEF;
-            break;
-        case TYPE_BOOL:
-            ret.type = TYPE_BOOL;
-            ret.u.boolean = vartobool(var);
-            break;
-        case TYPE_FUNCTION:
-        case TYPE_CFUNCTION:
-            runtimeerror("Cannot convert function");
-            break;
-        case TYPE_MAX_VALUE:
-            assert(false && "Undefined Type given");
-            break;
-    }
-
-    return ret;
 }
 
 static FunctionWrapper* find_function(State* S, const char* name)
@@ -352,10 +122,10 @@ static void run_call(Runtime* R)
     } else {
         Runtime* newruntime = create_runtime(R->state);
         for (int i = 0; i < param_count; ++i) {
-            push(newruntime, cpy_var(*top(R))); // Transfer arguments
+            push(newruntime, *top(R)); // Transfer arguments
             pop(R);
         }
-        run_function(newruntime, callee->u.function);
+        callee->u.cfunction(newruntime);
         push(R, *top(newruntime)); // Return variable
         destroy_runtime(newruntime);
     }
@@ -636,6 +406,14 @@ void run_function(Runtime* R, Function* fn)
     }
 }
 
+static void init_builtin_functions(State* S)
+{
+    for (size_t i = 0; i < arrcount(std_functions); ++i) {
+        CFunctionPair pair = std_functions[i];
+        addfunction(S, wrap_cfunction(pair.cfunction, strdup(pair.name)));
+    }
+}
+
 void run_file(const char* filepath) {
     FILE* handle = fopen(filepath, "r");
     AST* ast = parse(handle);
@@ -643,11 +421,12 @@ void run_file(const char* filepath) {
     Function* fn = create_function();
     State* S = create_state();
     addfunction(S, wrap_function(fn, strdup("<pseudomain>")));
+    init_builtin_functions(S);
     compile(S, fn, ast);
 
     Runtime* R = create_runtime(S);
     R->file = strdup(filepath);
-    print_code(fn, "<pseudomain>");
+    //print_code(fn, "<pseudomain>");
     run_function(R, fn);
     destroy_state(S);
     destroy_runtime(R);
