@@ -403,7 +403,9 @@ static void compile_whilestmt(State* S, Function* fn, AST* ast)
     compile(S, fn, ast->node2);
 
     emit(fn, OP_JMP); // Jump back to while start
-    // TODO: Check overflow
+    if ((uint32_t) while_start != while_start) {
+        compiletimeerror("Jump address overflowed while compiling while statement");
+    }
     emitraw32(fn, (uint32_t) while_start);
 
     emit_replace32(fn, placeholder, (Operator) emit(fn, OP_NOP));
@@ -422,7 +424,9 @@ static void compile_forstmt(State* S, Function* fn, AST* ast) {
     compile(S, fn, ast->node3); // Post expression
 
     emit(fn, OP_JMP); // Jump back to for start
-    // TODO: Check overflow
+    if ((uint32_t) for_start != for_start) {
+        compiletimeerror("Jump address overflowed while compiling while statement");
+    }
     emitraw32(fn, (uint32_t) for_start);
 
     emit_replace32(fn, placeholder, (Operator) emit(fn, OP_NOP));
