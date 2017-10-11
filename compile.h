@@ -39,6 +39,12 @@
 
 DECLARE_ENUM(Operator, ENUM_OPERATOR);
 
+typedef struct State {
+    struct Function** functions;
+    size_t funlen;
+    size_t funcapacity;
+} State;
+
 typedef uint8_t codepoint_t;
 
 typedef struct Function {
@@ -55,10 +61,6 @@ typedef struct Function {
     uint16_t strlen;
     uint16_t strcapacity;
 
-    struct Function** functions;
-    size_t funlen;
-    size_t funcapacity;
-
     lineno_t lastline;
 } Function;
 
@@ -69,10 +71,15 @@ _Static_assert((codepoint_t) OP_MAX_VALUE == OP_MAX_VALUE, "OP must fit into cod
 Function* create_function(char* name);
 void free_function(Function* fn);
 
-Function* compile(Function* fn, AST* root);
+State* create_state();
+void destroy_state(State*);
+
+Function* compile(State* S, Function* fn, AST* root);
+void addfunction(State* S, Function* fn);
 
 _Noreturn void compiletimeerror(char* fmt, ...);
 
+void print_state(State*);
 void print_code(Function* fn);
 
 

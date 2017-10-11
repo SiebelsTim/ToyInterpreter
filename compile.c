@@ -21,16 +21,12 @@ Function* create_function(char* name)
     ret->lineno_defined = 0;
 
     ret->codesize = 0;
-    ret->codecapacity = 8;
+    ret->codecapacity = 1 << 8;
     ret->code = calloc(sizeof(*ret->code), ret->codecapacity);
 
     ret->strcapacity = 4;
     ret->strlen = 0;
     ret->strs = calloc(sizeof(*ret->strs), ret->strcapacity);
-
-    ret->funcapacity = 0;
-    ret->funlen = 0;
-    ret->functions = NULL;
 
     return ret;
 }
@@ -45,11 +41,6 @@ void free_function(Function* fn)
     }
     free(fn->strs);
 
-    for (size_t i = 0; i < fn->funlen; ++i) {
-        free_function(fn->functions[i]);
-    }
-    free(fn->functions);
-
 
     for (size_t i = 0; i < fn->paramlen; ++i) {
         free(fn->params[i]);
@@ -57,6 +48,26 @@ void free_function(Function* fn)
     free(fn->params);
 
     free(fn);
+}
+
+State* create_state()
+{
+    State* ret = malloc(sizeof(*ret));
+
+    ret->funlen = 0;
+    ret->funcapacity = 4;
+    ret->functions = calloc(ret->funcapacity, sizeof(*ret->functions));
+
+    return ret;
+}
+
+void destroy_state(State* S)
+{
+    for (size_t i = 0; i < S->funlen; ++i) {
+        free_function(S->functions[i]);
+    }
+    free(S->functions);
+    free(S);
 }
 
 _Noreturn void compiletimeerror(char* fmt, ...)
@@ -188,16 +199,16 @@ static void addstring(Function* fn, char* str)
     emitraw16(fn, fn->strlen++);
 }
 
-static void addfunction(Function* parent, Function* fn)
+void addfunction(State* S, Function* fn)
 {
-    if (!try_resize(&parent->funcapacity, parent->funlen,
-                    (void**)&parent->functions, sizeof(*parent->functions), NULL)) {
+    if (!try_resize(&S->funcapacity, S->funlen,
+                    (void**)&S->functions, sizeof(*S->functions), NULL)) {
         compiletimeerror("could not realloc functions");
         return;
     }
 
-    assert(parent->funlen < parent->funcapacity);
-    parent->functions[parent->funlen++] = fn;
+    assert(S->funlen < S->funcapacity);
+    S->functions[S->funlen++] = fn;
 }
 
 static void compile_string(Function* fn, AST* ast)
@@ -206,7 +217,7 @@ static void compile_string(Function* fn, AST* ast)
     addstring(fn, overtake_ast_str(ast));
 }
 
-static void compile_function(Function* parent, AST* ast)
+static void compile_function(State* S, AST* ast)
 {
     assert(ast->node1 && ast->node2 && ast->node3);
     AST* const name = ast->node1;
@@ -229,20 +240,20 @@ static void compile_function(Function* parent, AST* ast)
         fn->params[i] = overtake_ast_str(param);
     }
 
-    addfunction(parent, fn);
-    compile(fn, body);
+    addfunction(S, fn);
+    compile(S, fn, body);
 
     emit(fn, OP_NULL); // Safeguard to guarantee that we have a return value
     emit(fn, OP_RETURN);
 }
 
-static void compile_call(Function* fn, AST* ast)
+static void compile_call(State* S, Function* fn, AST* ast)
 {
     assert(ast->node1);
     uint8_t argcount = 0;
     AST* args = ast->node1->next;
     while (args) { // Push args
-        compile(fn, args);
+        compile(S, fn, args);
         args = args->next;
         if (argcount + 1 < argcount) {
             compiletimeerror("Cannot compile functions with argument >255");
@@ -257,21 +268,21 @@ static void compile_call(Function* fn, AST* ast)
     emitraw8(fn, argcount); // Number of parameters
 }
 
-static void compile_blockstmt(Function* fn, AST* ast)
+static void compile_blockstmt(State* S, Function* fn, AST* ast)
 {
     assert(ast->type == AST_LIST);
     AST* current = ast->next;
     while (current) {
-        compile(fn, current);
+        compile(S, fn, current);
         current = current->next;
     }
 }
 
-static void compile_echostmt(Function* fn, AST* ast)
+static void compile_echostmt(State* S, Function* fn, AST* ast)
 {
     assert(ast->type == AST_ECHO);
     assert(ast->node1);
-    compile(fn, ast->node1);
+    compile(S, fn, ast->node1);
     emit(fn, OP_ECHO);
 }
 
@@ -282,12 +293,12 @@ static void compile_html(Function* fn, AST* ast)
     emit(fn, OP_ECHO);
 }
 
-static void compile_assignmentexpr(Function* fn, AST* ast)
+static void compile_assignmentexpr(State* S, Function* fn, AST* ast)
 {
     assert(ast->type == AST_ASSIGNMENT);
     assert(ast->node1);
     assert(ast->val.str);
-    compile(fn, ast->node1);
+    compile(S, fn, ast->node1);
     emit(fn, OP_ASSIGN);
     addstring(fn, overtake_ast_str(ast));
 }
@@ -298,14 +309,14 @@ static void compile_varexpr(Function* fn, AST* ast)
     addstring(fn, overtake_ast_str(ast));
 }
 
-static void compile_ifstmt(Function* fn, AST* ast)
+static void compile_ifstmt(State* S, Function* fn, AST* ast)
 {
     assert(ast->type == AST_IF);
     assert(ast->node1 && ast->node2);
-    compile(fn, ast->node1);
+    compile(S, fn, ast->node1);
     emit(fn, OP_JMPZ); // Jump over code if false
     size_t placeholder = emitraw32(fn, OP_INVALID); // Placeholder
-    compile(fn, ast->node2);
+    compile(S, fn, ast->node2);
     emit_replace32(fn, placeholder, (Operator) emit(fn, OP_NOP)); // place to jump over if
     assert((Operator)fn->codesize == fn->codesize);
 
@@ -316,17 +327,17 @@ static void compile_ifstmt(Function* fn, AST* ast)
         // However, we need to increase it by one two jmp over this jmp
         emit_replace32(fn, placeholder, (Operator) fn->codesize);
 
-        compile(fn, ast->node3);
+        compile(S, fn, ast->node3);
         emit_replace32(fn, else_placeholder, (Operator) emit(fn, OP_NOP));
     }
 }
 
-static void compile_binop(Function* fn, AST* ast)
+static void compile_binop(State* S, Function* fn, AST* ast)
 {
     assert(ast->type == AST_BINOP);
     assert(ast->node1 && ast->node2);
-    compile(fn, ast->node1);
-    compile(fn, ast->node2);
+    compile(S, fn, ast->node1);
+    compile(S, fn, ast->node2);
     switch (ast->val.lint) {
         case '+':
             emit(fn, OP_ADD);
@@ -359,20 +370,20 @@ static void compile_binop(Function* fn, AST* ast)
     }
 }
 
-static void compile_prefixop(Function* fn, AST* ast)
+static void compile_prefixop(State* S, Function* fn, AST* ast)
 {
     assert(ast->node1->type == AST_VAR);
-    compile(fn, ast->node1);
+    compile(S, fn, ast->node1);
     uint16_t nameidx = *(uint16_t*)(&fn->code[fn->codesize - 2]); // Next codepoint
     assert(nameidx < fn->strlen);
     emit(fn, OP_ADD1);
     emit(fn, OP_ASSIGN);
     emitraw16(fn, nameidx);
 }
-static void compile_postfixop(Function* fn, AST* ast)
+static void compile_postfixop(State* S, Function* fn, AST* ast)
 {
     assert(ast->node1->type == AST_VAR);
-    compile(fn, ast->node1);
+    compile(S, fn, ast->node1);
     uint16_t nameidx = *(uint16_t*)(&fn->code[fn->codesize - 2]); // Next codepoint
     assert(nameidx < fn->strlen);
     emit(fn, OP_ADD1);
@@ -381,15 +392,15 @@ static void compile_postfixop(Function* fn, AST* ast)
     emit(fn, OP_SUB1);
 }
 
-static void compile_whilestmt(Function* fn, AST* ast)
+static void compile_whilestmt(State* S, Function* fn, AST* ast)
 {
     assert(ast->type == AST_WHILE);
     assert(ast->node1 && ast->node2);
     size_t while_start = fn->codesize;
-    compile(fn, ast->node1);
+    compile(S, fn, ast->node1);
     emit(fn, OP_JMPZ); // Jump over body if zero
     size_t placeholder = emitraw32(fn, OP_INVALID); // Placeholder
-    compile(fn, ast->node2);
+    compile(S, fn, ast->node2);
 
     emit(fn, OP_JMP); // Jump back to while start
     // TODO: Check overflow
@@ -399,16 +410,16 @@ static void compile_whilestmt(Function* fn, AST* ast)
 }
 
 
-static void compile_forstmt(Function* fn, AST* ast) {
+static void compile_forstmt(State* S, Function* fn, AST* ast) {
     assert(ast->type == AST_FOR);
     assert(ast->node1 && ast->node2 && ast->node3 && ast->node4);
-    compile(fn, ast->node1); // Init
+    compile(S, fn, ast->node1); // Init
     size_t for_start = fn->codesize;
-    compile(fn, ast->node2); // Condition
+    compile(S, fn, ast->node2); // Condition
     emit(fn, OP_JMPZ); // Jump over body if zero
     size_t placeholder = emitraw32(fn, OP_INVALID); // Placeholder
-    compile(fn, ast->node4); // Body
-    compile(fn, ast->node3); // Post expression
+    compile(S, fn, ast->node4); // Body
+    compile(S, fn, ast->node3); // Post expression
 
     emit(fn, OP_JMP); // Jump back to for start
     // TODO: Check overflow
@@ -418,42 +429,42 @@ static void compile_forstmt(Function* fn, AST* ast) {
 }
 
 
-Function* compile(Function* fn, AST* ast)
+Function* compile(State* S, Function* fn, AST* ast)
 {
     switch (ast->type) {
         case AST_FUNCTION:
-            compile_function(fn, ast);
+            compile_function(S, ast);
             break;
         case AST_RETURN:
-            compile(fn, ast->node1);
+            compile(S, fn, ast->node1);
             emit(fn, OP_RETURN);
             break;
         case AST_CALL:
-            compile_call(fn, ast);
+            compile_call(S, fn, ast);
             break;
         case AST_LIST:
-            compile_blockstmt(fn, ast);
+            compile_blockstmt(S, fn, ast);
             break;
         case AST_ECHO:
-            compile_echostmt(fn, ast);
+            compile_echostmt(S, fn, ast);
             break;
         case AST_IF:
-            compile_ifstmt(fn, ast);
+            compile_ifstmt(S, fn, ast);
             break;
         case AST_STRING:
             compile_string(fn, ast);
             break;
         case AST_BINOP:
-            compile_binop(fn, ast);
+            compile_binop(S, fn, ast);
             break;
         case AST_PREFIXOP:
-            compile_prefixop(fn, ast);
+            compile_prefixop(S, fn, ast);
             break;
         case AST_POSTFIXOP:
-            compile_postfixop(fn, ast);
+            compile_postfixop(S, fn, ast);
             break;
         case AST_NOTOP:
-            compile(fn, ast->node1);
+            compile(S, fn, ast->node1);
             emit(fn, OP_NOT);
             break;
         case AST_LONG:
@@ -466,22 +477,29 @@ Function* compile(Function* fn, AST* ast)
             compile_varexpr(fn, ast);
             break;
         case AST_ASSIGNMENT:
-            compile_assignmentexpr(fn, ast);
+            compile_assignmentexpr(S, fn, ast);
             break;
         case AST_HTML:
             compile_html(fn, ast);
             break;
         case AST_WHILE:
-            compile_whilestmt(fn, ast);
+            compile_whilestmt(S, fn, ast);
             break;
         case AST_FOR:
-            compile_forstmt(fn, ast);
+            compile_forstmt(S, fn, ast);
             break;
         default:
             compiletimeerror("Unexpected Type '%s'", get_ASTTYPE_name(ast->type));
     }
 
     return fn;
+}
+
+void print_state(State* S)
+{
+    for (size_t i = 0; i < S->funlen; ++i) {
+        print_code(S->functions[i]);
+    }
 }
 
 void print_code(Function* fn)
@@ -562,8 +580,4 @@ void print_code(Function* fn)
     }
 
     fprintf(stderr, "\n\n");
-
-    for (size_t i = 0; i < fn->funlen; ++i) {
-        print_code(fn->functions[i]);
-    }
 }

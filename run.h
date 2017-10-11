@@ -37,6 +37,7 @@ typedef struct Runtime {
     codepoint_t* ip;
     Variant* stack;
     Scope* scope;
+    State* state; // non-owning ptr
 
     size_t line;
     char* file;

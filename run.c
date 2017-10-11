@@ -57,7 +57,7 @@ static Variant* stackidx(Runtime* R, long idx)
     return &R->stack[idx];
 }
 
-static Runtime* create_runtime()
+static Runtime* create_runtime(State* S)
 {
     Runtime* ret = malloc(sizeof(Runtime));
 
@@ -65,6 +65,7 @@ static Runtime* create_runtime()
     ret->stacksize = 0;
     ret->stack = calloc(ret->stackcapacity, sizeof(*ret->stack));
     ret->scope = create_scope();
+    ret->state = S;
     ret->line = 0;
     ret->file = NULL;
 
@@ -194,11 +195,11 @@ static int64_t tolong(Runtime* R, int idx)
     }
 }
 
-static Function* find_function(Function* parent, const char* name)
+static Function* find_function(State* S, const char* name)
 {
-    for (size_t i = 0; i < parent->funlen; ++i) {
-        if (strcmp(parent->functions[i]->name, name) == 0) {
-            return parent->functions[i];
+    for (size_t i = 0; i < S->funlen; ++i) {
+        if (strcmp(S->functions[i]->name, name) == 0) {
+            return S->functions[i];
         }
     }
 
@@ -206,12 +207,12 @@ static Function* find_function(Function* parent, const char* name)
 }
 
 
-static void run_call(Runtime* R, Function* fn)
+static void run_call(Runtime* R)
 {
     const char* fnname = tostring(R, -1);
     pop(R);
 
-    Function* callee = find_function(fn, fnname);
+    Function* callee = find_function(R->state, fnname);
     if (!callee) {
         raise_fatal(R, "Call to undefined function %s()", fnname);
         free((void*)fnname);
@@ -225,7 +226,7 @@ static void run_call(Runtime* R, Function* fn)
         return;
     }
 
-    Runtime* newruntime = create_runtime();
+    Runtime* newruntime = create_runtime(R->state);
     for (int i = 0; i < param_count; ++i) {
         set_var(newruntime, callee->params[i], *top(R)); // Transfer arguments
         pop(R);
@@ -387,7 +388,7 @@ void run_function(Runtime* R, Function* fn)
             case OP_RETURN:
                 return; // Finish executing Function
             case OP_CALL:
-                run_call(R, fn);
+                run_call(R);
                 break;
             case OP_ECHO:
                 run_echo(R);
@@ -482,15 +483,16 @@ void run_file(const char* filepath) {
     AST* ast = parse(handle);
 
     Function* fn = create_function(strdup("<pseudomain>"));
-    compile(fn, ast);
+    State* S = create_state();
+    addfunction(S, fn);
+    compile(S, fn, ast);
 
-    Runtime* R = create_runtime();
+    Runtime* R = create_runtime(S);
     R->file = strdup(filepath);
     print_code(fn);
     run_function(R, fn);
+    destroy_state(S);
     destroy_runtime(R);
-
-    free_function(fn);
 
     destroy_ast(ast);
 }
