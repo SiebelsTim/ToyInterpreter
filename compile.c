@@ -361,6 +361,9 @@ static void compile_binop(State* S, Function* fn, AST* ast)
         case '*':
             emit(fn, OP_MUL);
             break;
+        case '.':
+            emit(fn, OP_CONCAT);
+            break;
         case TK_SHL:
             emit(fn, OP_SHL);
             break;
@@ -373,9 +376,23 @@ static void compile_binop(State* S, Function* fn, AST* ast)
         case TK_GTEQ:
             emit(fn, OP_GTE);
             break;
+        case '<':
+            emit(fn, OP_LT);
+            break;
+        case '>':
+            emit(fn, OP_GT);
+            break;
+        case TK_EQ:
+            emit(fn, OP_EQ);
+            break;
+        case TK_AND:
+            emit(fn, OP_AND);
+            break;
+        case TK_OR:
+            emit(fn, OP_OR);
+            break;
         default:
-            emit(fn, OP_BIN);
-            emitraw16(fn, (uint16_t)ast->val.lint);
+            assert(false && "Undefined BINOP");
             break;
     }
 }
@@ -563,11 +580,6 @@ void print_code(Function* fn)
                 *(uint64_t*)(bytes + 1) = *(uint64_t*)ip;
                 ip += 8;
                 chars_written += fprintf(stderr, "%" PRId64, lint);
-                break;
-            case OP_BIN:
-                *(uint16_t*)(bytes + 1) = fetch16(ip);
-                chars_written += fprintf(stderr, "%s", get_token_name(fetch16(ip)));
-                ip += 2;
                 break;
             case OP_ASSIGN:
                 *(uint16_t*)(bytes + 1) = fetch16(ip);

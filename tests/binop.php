@@ -3,10 +3,10 @@
 if (true && false)
     echo "NOT EXECUTED\n";
 if (true || false)
-    echo "EXECUTED\n";
+    echo "EXECUTED true || false \n";
 
 if (true && true)
-    echo "EXECUTED\n";
+    echo "EXECUTED true && true\n";
 
 if (false && false)
     echo "NOT EXECUTED\n";
@@ -14,25 +14,25 @@ if (false && false)
 $var = true || false;
 
 if ($var) {
-    echo "EXECUTED\n";
+    echo "EXECUTED var\n";
 }
 
 if ("Hallo" == "Hallo") {
-    echo "EXECUTED\n";
+    echo "EXECUTED Hallo==Hallo\n";
 }
 
 if ("Hallo" == "hallo") 
     echo "NOT EXECUTED\n";
 
 if (1 == 2) 
-    echo "NOT EXECUTED\n";
+    echo "NOT EXECUTED \n";
 
 if (42 == 21*2) {
-  echo "EXECUTED\n";
+  echo "EXECUTED 42 == 21*2\n";
 }
 
 if (1 < 2) {
-  echo "EXECUTED\n";
+  echo "EXECUTED 1 < 2\n";
 }
 
 if (1 > 2) {
@@ -41,7 +41,7 @@ if (1 > 2) {
 
 
 if (1 <= 2) {
-  echo "EXECUTED\n";
+  echo "EXECUTED 1 <= 2\n";
 }
 
 if (1 >= 2) {

@@ -18,10 +18,15 @@
         ENUM_EL(OP_TRUE,) \
         ENUM_EL(OP_FALSE,) \
         ENUM_EL(OP_NULL,)  \
-        ENUM_EL(OP_BIN,) \
         ENUM_EL(OP_LTE,)  \
         ENUM_EL(OP_GTE,)  \
+        ENUM_EL(OP_LT,)   \
+        ENUM_EL(OP_GT,)   \
         ENUM_EL(OP_NOT,)  \
+        ENUM_EL(OP_AND,)  \
+        ENUM_EL(OP_OR,)   \
+        ENUM_EL(OP_EQ,)   \
+        ENUM_EL(OP_CONCAT,) \
         ENUM_EL(OP_SUB,) \
         ENUM_EL(OP_ADD,) \
         ENUM_EL(OP_ADD1,) \

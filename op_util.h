@@ -14,9 +14,14 @@ static inline bool is_push_op(Operator op)
         case OP_LONG:
         case OP_TRUE:
         case OP_FALSE:
-        case OP_BIN:
+        case OP_AND:
+        case OP_OR:
+        case OP_EQ:
+        case OP_CONCAT:
         case OP_LTE:
         case OP_GTE:
+        case OP_GT:
+        case OP_LT:
         case OP_NOT:
         case OP_SUB:
         case OP_ADD:
@@ -69,10 +74,15 @@ static inline bool is_immediate(Operator op)
         case OP_CALL:
         case OP_RETURN:
         case OP_ECHO:
-        case OP_BIN:
+        case OP_AND:
+        case OP_OR:
+        case OP_EQ:
+        case OP_CONCAT:
         case OP_NOT:
         case OP_LTE:
         case OP_GTE:
+        case OP_GT:
+        case OP_LT:
         case OP_SUB:
         case OP_ADD:
         case OP_ADD1:
@@ -100,7 +110,6 @@ static inline size_t op_len(Operator op)
         case OP_STR:
         case OP_ASSIGN:
         case OP_LOOKUP:
-        case OP_BIN:
             return 3;
         case OP_CALL:
         case OP_CAST:

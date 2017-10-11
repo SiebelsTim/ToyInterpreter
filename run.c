@@ -391,10 +391,6 @@ static bool compare_equal(Variant lhs, Variant rhs)
 
 static void run_binop(Runtime* R, int op)
 {
-    if (op == '.') {
-        return run_stringaddexpr(R);
-    }
-
     if (op == '+' || op == '-' || op == '*' || op == '/' || op == '<' ||
         op == TK_AND || op == TK_OR || op == TK_SHL || op == TK_SHR ||
         op == TK_LTEQ || op == TK_GTEQ) {
@@ -507,18 +503,32 @@ void run_function(Runtime* R, Function* fn)
             case OP_NULL:
                 pushnull(R);
                 break;
-            case OP_BIN:
-                run_binop(R, fetch16(R->ip));
-                R->ip += 2;
-                break;
             case OP_LTE:
                 run_binop(R, TK_LTEQ);
                 break;
             case OP_GTE:
                 run_binop(R, TK_GTEQ);
                 break;
+            case OP_LT:
+                run_binop(R, '<');
+                break;
+            case OP_GT:
+                run_binop(R, '>');
+                break;
             case OP_NOT:
                 run_notop(R);
+                break;
+            case OP_AND:
+                run_binop(R, TK_AND);
+                break;
+            case OP_OR:
+                run_binop(R, TK_OR);
+                break;
+            case OP_EQ:
+                run_binop(R, TK_EQ);
+                break;
+            case OP_CONCAT:
+                run_stringaddexpr(R);
                 break;
             case OP_ADD:
                 run_binop(R, '+');
