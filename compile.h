@@ -46,7 +46,7 @@
 DECLARE_ENUM(Operator, ENUM_OPERATOR);
 
 typedef struct State {
-    struct Function** functions;
+    struct FunctionWrapper* functions;
     size_t funlen;
     size_t funcapacity;
 } State;
@@ -54,7 +54,6 @@ typedef struct State {
 typedef uint8_t codepoint_t;
 
 typedef struct Function {
-    char* name;
     lineno_t lineno_defined;
     uint8_t paramlen;
     char** params;
@@ -70,23 +69,41 @@ typedef struct Function {
     lineno_t lastline;
 } Function;
 
+enum FUNCTION_TYPE {
+    FUNCTION,
+    CFUNCTION
+};
+
+struct Runtime;
+typedef void (*CFunction(struct Runtime*));
+typedef struct FunctionWrapper {
+    char* name;
+    enum FUNCTION_TYPE type;
+    union {
+        Function* function;
+        CFunction* cfunction;
+    } u;
+} FunctionWrapper;
+
 typedef uint32_t RelAddr;
 _Static_assert(sizeof(RelAddr) == sizeof(codepoint_t)*4, "RelAddr must be == 4 Operators in size");
 _Static_assert((codepoint_t) OP_MAX_VALUE == OP_MAX_VALUE, "OP must fit into codepoint_t");
 
-Function* create_function(char* name);
+Function* create_function();
 void free_function(Function* fn);
+FunctionWrapper wrap_function(Function* fn, char* name);
+FunctionWrapper wrap_cfunction(CFunction* fn, char* name);
 
 State* create_state();
 void destroy_state(State*);
 
 Function* compile(State* S, Function* fn, AST* root);
-void addfunction(State* S, Function* fn);
+void addfunction(State* S, FunctionWrapper fn);
 
 _Noreturn void compiletimeerror(char* fmt, ...);
 
 void print_state(State*);
-void print_code(Function* fn);
+void print_code(Function* fn, char* name);
 
 
 static inline uint8_t fetch8(const codepoint_t* ip)

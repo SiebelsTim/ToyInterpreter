@@ -10,6 +10,7 @@
 #include "run.h"
 #include "scope.h"
 #include "array-util.h"
+#include "compile.h"
 
 
 DEFINE_ENUM(VARIANTTYPE, ENUM_VARIANTTYPE);
@@ -153,6 +154,22 @@ static inline void pushnull(Runtime* R)
     push(R, var);
 }
 
+static inline void pushfunction(Runtime* R, Function* fn)
+{
+    Variant var;
+    var.type = TYPE_FUNCTION;
+    var.u.function = fn;
+    push(R, var);
+}
+
+static inline void pushcfunction(Runtime* R, CFunction* fn)
+{
+    Variant var;
+    var.type = TYPE_CFUNCTION;
+    var.u.cfunction = fn;
+    push(R, var);
+}
+
 static char* vartostring(Variant var)
 {
     char* buf;
@@ -170,6 +187,9 @@ static char* vartostring(Variant var)
             return strdup("<null>");
         case TYPE_BOOL:
             return var.u.boolean ? strdup("1") : strdup("");
+        case TYPE_FUNCTION:
+        case TYPE_CFUNCTION:
+            return strdup("function");
         case TYPE_MAX_VALUE:
             assert(false && "Undefined Type given");
             break;
@@ -200,6 +220,9 @@ static int64_t vartolong(Variant var)
             return lint;
         case TYPE_LONG:
             return var.u.lint;
+        case TYPE_FUNCTION:
+        case TYPE_CFUNCTION:
+            return 0;
         case TYPE_MAX_VALUE:
             assert(false && "Undefined Type given");
             break;
@@ -230,6 +253,9 @@ static bool vartobool(Variant var)
             } else {
                 return true;
             }
+        case TYPE_FUNCTION:
+        case TYPE_CFUNCTION:
+            return false;
         case TYPE_MAX_VALUE:
             assert(false && "Undefined Type given");
             break;
@@ -270,6 +296,10 @@ static Variant vartotype(Variant var, VARIANTTYPE type)
             ret.type = TYPE_BOOL;
             ret.u.boolean = vartobool(var);
             break;
+        case TYPE_FUNCTION:
+        case TYPE_CFUNCTION:
+            runtimeerror("Cannot convert function");
+            break;
         case TYPE_MAX_VALUE:
             assert(false && "Undefined Type given");
             break;
@@ -278,11 +308,11 @@ static Variant vartotype(Variant var, VARIANTTYPE type)
     return ret;
 }
 
-static Function* find_function(State* S, const char* name)
+static FunctionWrapper* find_function(State* S, const char* name)
 {
     for (size_t i = 0; i < S->funlen; ++i) {
-        if (strcmp(S->functions[i]->name, name) == 0) {
-            return S->functions[i];
+        if (strcmp(S->functions[i].name, name) == 0) {
+            return &S->functions[i];
         }
     }
 
@@ -295,7 +325,7 @@ static void run_call(Runtime* R)
     const char* fnname = tostring(R, -1);
     pop(R);
 
-    Function* callee = find_function(R->state, fnname);
+    FunctionWrapper* callee = find_function(R->state, fnname);
     if (!callee) {
         raise_fatal(R, "Call to undefined function %s()", fnname);
         free((void*)fnname);
@@ -303,20 +333,32 @@ static void run_call(Runtime* R)
     }
     free((void*)fnname);
     const uint8_t param_count = fetch8(R->ip++);
-    if (param_count != callee->paramlen) {
-        raise_fatal(R, "Parameter number mismatch. %u expected, %u given",
-                    callee->paramlen, param_count);
-        return;
-    }
 
-    Runtime* newruntime = create_runtime(R->state);
-    for (int i = 0; i < param_count; ++i) {
-        set_var(newruntime, callee->params[i], *top(R)); // Transfer arguments
-        pop(R);
+    if (callee->type == FUNCTION) {
+        if (param_count != callee->u.function->paramlen) {
+            raise_fatal(R, "Parameter number mismatch. %u expected, %u given",
+                        callee->u.function->paramlen, param_count);
+            return;
+        }
+
+        Runtime* newruntime = create_runtime(R->state);
+        for (int i = 0; i < param_count; ++i) {
+            set_var(newruntime, callee->u.function->params[i], *top(R)); // Transfer arguments
+            pop(R);
+        }
+        run_function(newruntime, callee->u.function);
+        push(R, *top(newruntime)); // Return variable
+        destroy_runtime(newruntime);
+    } else {
+        Runtime* newruntime = create_runtime(R->state);
+        for (int i = 0; i < param_count; ++i) {
+            push(newruntime, cpy_var(*top(R))); // Transfer arguments
+            pop(R);
+        }
+        run_function(newruntime, callee->u.function);
+        push(R, *top(newruntime)); // Return variable
+        destroy_runtime(newruntime);
     }
-    run_function(newruntime, callee);
-    push(R, *top(newruntime)); // Return variable
-    destroy_runtime(newruntime);
 }
 
 static void run_echo(Runtime* R)
@@ -379,6 +421,10 @@ static bool compare_equal(Variant lhs, Variant rhs)
                 return lhs.u.boolean == rhs.u.boolean;
             }
             return compare_equal(lhs, vartotype(rhs, TYPE_BOOL));
+        case TYPE_CFUNCTION:
+            return rhs.type == TYPE_CFUNCTION && rhs.u.cfunction == lhs.u.cfunction;
+        case TYPE_FUNCTION:
+            return rhs.type == TYPE_FUNCTION && rhs.u.function == lhs.u.function;
         case TYPE_MAX_VALUE:
             assert(false && "Undefined Type given");
             break;
@@ -594,14 +640,14 @@ void run_file(const char* filepath) {
     FILE* handle = fopen(filepath, "r");
     AST* ast = parse(handle);
 
-    Function* fn = create_function(strdup("<pseudomain>"));
+    Function* fn = create_function();
     State* S = create_state();
-    addfunction(S, fn);
+    addfunction(S, wrap_function(fn, strdup("<pseudomain>")));
     compile(S, fn, ast);
 
     Runtime* R = create_runtime(S);
     R->file = strdup(filepath);
-    print_code(fn);
+    print_code(fn, "<pseudomain>");
     run_function(R, fn);
     destroy_state(S);
     destroy_runtime(R);
@@ -631,6 +677,10 @@ void print_stack(Runtime* R)
                 break;
             case TYPE_BOOL:
                 printf(var->u.boolean ? "TRUE" : "FALSE");
+                break;
+            case TYPE_FUNCTION:
+            case TYPE_CFUNCTION:
+                printf("FUNCTION");
                 break;
             case TYPE_MAX_VALUE:
                 assert(false && "Undefined Type given");

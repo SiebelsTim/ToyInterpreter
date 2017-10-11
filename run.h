@@ -7,12 +7,14 @@
 #include "compile.h"
 #include "crossplatform/stdnoreturn.h"
 
-#define ENUM_VARIANTTYPE(ELEMENT) \
+#define ENUM_VARIANTTYPE(ELEMENT)   \
     ELEMENT(TYPE_UNDEF, =0)         \
-    ELEMENT(TYPE_STRING,)               \
-    ELEMENT(TYPE_LONG,)                 \
+    ELEMENT(TYPE_STRING,)           \
+    ELEMENT(TYPE_LONG,)             \
     ELEMENT(TYPE_BOOL,)             \
-    ELEMENT(TYPE_NULL,) \
+    ELEMENT(TYPE_NULL,)             \
+    ELEMENT(TYPE_CFUNCTION,)        \
+    ELEMENT(TYPE_FUNCTION,)         \
     ELEMENT(TYPE_MAX_VALUE,)
 
 DECLARE_ENUM(VARIANTTYPE, ENUM_VARIANTTYPE);
@@ -23,6 +25,8 @@ typedef struct Variant {
         char* str;
         int64_t lint;
         bool boolean;
+        Function* function;
+        CFunction* cfunction;
     } u;
 } Variant;
 

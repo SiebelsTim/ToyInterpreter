@@ -12,11 +12,10 @@
 
 DEFINE_ENUM(Operator, ENUM_OPERATOR);
 
-Function* create_function(char* name)
+Function* create_function()
 {
     Function* ret = malloc(sizeof(Function));
 
-    ret->name = name ? name : strdup("<unnamed>");
     ret->paramlen = 0;
     ret->params = NULL;
     ret->lineno_defined = 0;
@@ -34,7 +33,6 @@ Function* create_function(char* name)
 
 void free_function(Function* fn)
 {
-    free(fn->name);
     free(fn->code);
 
     for (int i = 0; i < fn->strlen; ++i) {
@@ -51,6 +49,26 @@ void free_function(Function* fn)
     free(fn);
 }
 
+FunctionWrapper wrap_function(Function* fn, char* name)
+{
+    FunctionWrapper ret;
+    ret.type = FUNCTION;
+    ret.name = name;
+    ret.u.function = fn;
+
+    return ret;
+}
+
+FunctionWrapper wrap_cfunction(CFunction* fn, char* name)
+{
+    FunctionWrapper ret;
+    ret.type = CFUNCTION;
+    ret.name = name;
+    ret.u.cfunction = fn;
+
+    return ret;
+}
+
 State* create_state()
 {
     State* ret = malloc(sizeof(*ret));
@@ -65,7 +83,11 @@ State* create_state()
 void destroy_state(State* S)
 {
     for (size_t i = 0; i < S->funlen; ++i) {
-        free_function(S->functions[i]);
+        FunctionWrapper wrapper = S->functions[i];
+        if (wrapper.type == FUNCTION) {
+            free_function(wrapper.u.function);
+        }
+        free(wrapper.name);
     }
     free(S->functions);
     free(S);
@@ -208,7 +230,7 @@ static void addstring(Function* fn, char* str)
     emitraw16(fn, fn->strlen++);
 }
 
-void addfunction(State* S, Function* fn)
+void addfunction(State* S, FunctionWrapper fn)
 {
     if (!try_resize(&S->funcapacity, S->funlen,
                     (void**)&S->functions, sizeof(*S->functions), NULL)) {
@@ -232,7 +254,7 @@ static void compile_function(State* S, AST* ast)
     AST* const name = ast->node1;
     AST* const params = ast->node2;
     AST* const body = ast->node3;
-    Function* fn = create_function(overtake_ast_str(name));
+    Function* fn = create_function();
     fn->lineno_defined = name->lineno;
     size_t paramcount = ast_list_count(params);
 
@@ -249,7 +271,7 @@ static void compile_function(State* S, AST* ast)
         fn->params[i] = overtake_ast_str(param);
     }
 
-    addfunction(S, fn);
+    addfunction(S, wrap_function(fn, overtake_ast_str(name)));
     compile(S, fn, body);
 
     emit(fn, OP_NULL); // Safeguard to guarantee that we have a return value
@@ -537,15 +559,20 @@ Function* compile(State* S, Function* fn, AST* ast)
 void print_state(State* S)
 {
     for (size_t i = 0; i < S->funlen; ++i) {
-        print_code(S->functions[i]);
+        FunctionWrapper fn = S->functions[i];
+        if (S->functions[i].type == FUNCTION) {
+            print_code(fn.u.function, fn.name);
+        } else {
+            printf("CFunction %s\n", fn.name);
+        }
     }
 }
 
-void print_code(Function* fn)
+void print_code(Function* fn, char* name)
 {
     codepoint_t* ip = fn->code;
     int64_t lint;
-    fprintf(stderr, "Function: %s (line %u)\n", fn->name, fn->lineno_defined);
+    fprintf(stderr, "Function: %s (line %u)\n", name, fn->lineno_defined);
 
     fprintf(stderr, "\n-----------------------\n");
     while ((size_t)(ip - fn->code) < fn->codesize) {
