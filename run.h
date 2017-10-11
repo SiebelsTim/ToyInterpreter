@@ -11,16 +11,18 @@
     ELEMENT(TYPE_UNDEF, =0)         \
     ELEMENT(TYPE_STRING,)               \
     ELEMENT(TYPE_LONG,)                 \
-    ELEMENT(TYPE_NULL,)
+    ELEMENT(TYPE_BOOL,)             \
+    ELEMENT(TYPE_NULL,) \
+    ELEMENT(TYPE_MAX_VALUE,)
 
 DECLARE_ENUM(VARIANTTYPE, ENUM_VARIANTTYPE);
-
 
 typedef struct Variant {
     VARIANTTYPE type;
     union {
         char* str;
         int64_t lint;
+        bool boolean;
     } u;
 } Variant;
 

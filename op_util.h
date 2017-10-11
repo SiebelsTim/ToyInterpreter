@@ -29,6 +29,7 @@ static inline bool is_push_op(Operator op)
         case OP_SHL:
         case OP_SHR:
         case OP_NULL:
+        case OP_CAST:
             return true;
         case OP_JMP:
         case OP_JMPZ:
@@ -85,6 +86,7 @@ static inline bool is_immediate(Operator op)
         case OP_NOP:
         case OP_SHL:
         case OP_SHR:
+        case OP_CAST:
             return false;
         case OP_MAX_VALUE:
             assert(false && "Encountered OP_MAX_VALUE");
@@ -101,6 +103,7 @@ static inline size_t op_len(Operator op)
         case OP_BIN:
             return 3;
         case OP_CALL:
+        case OP_CAST:
             return 2;
         case OP_JMP:
         case OP_JMPZ:

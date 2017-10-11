@@ -34,6 +34,7 @@
         ENUM_EL(OP_LOOKUP,) \
         ENUM_EL(OP_JMP,) \
         ENUM_EL(OP_JMPZ,) \
+        ENUM_EL(OP_CAST,) \
         ENUM_EL(OP_NOP,) \
         ENUM_EL(OP_MAX_VALUE,)
 

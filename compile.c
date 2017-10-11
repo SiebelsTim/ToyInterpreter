@@ -8,6 +8,7 @@
 #include "compile.h"
 #include "op_util.h"
 #include "array-util.h"
+#include "run.h"
 
 DEFINE_ENUM(Operator, ENUM_OPERATOR);
 
@@ -192,6 +193,14 @@ static void emitlong(Function* fn, int64_t lint)
     emitraw64(fn, (uint64_t) lint);
 }
 
+static void emitcast(Function* fn, VARIANTTYPE type)
+{
+    _Static_assert((int8_t)TYPE_MAX_VALUE == TYPE_MAX_VALUE,
+                   "VARIANTTYPE does not fit into 8 bit");
+    emit(fn, OP_CAST);
+    emitraw8(fn, type);
+}
+
 static void addstring(Function* fn, char* str)
 {
     try_strs_resize(fn);
@@ -314,6 +323,7 @@ static void compile_ifstmt(State* S, Function* fn, AST* ast)
     assert(ast->type == AST_IF);
     assert(ast->node1 && ast->node2);
     compile(S, fn, ast->node1);
+    emitcast(fn, TYPE_BOOL);
     emit(fn, OP_JMPZ); // Jump over code if false
     size_t placeholder = emitraw32(fn, OP_INVALID); // Placeholder
     compile(S, fn, ast->node2);
@@ -398,6 +408,7 @@ static void compile_whilestmt(State* S, Function* fn, AST* ast)
     assert(ast->node1 && ast->node2);
     size_t while_start = fn->codesize;
     compile(S, fn, ast->node1);
+    emitcast(fn, TYPE_BOOL);
     emit(fn, OP_JMPZ); // Jump over body if zero
     size_t placeholder = emitraw32(fn, OP_INVALID); // Placeholder
     compile(S, fn, ast->node2);
@@ -418,6 +429,7 @@ static void compile_forstmt(State* S, Function* fn, AST* ast) {
     compile(S, fn, ast->node1); // Init
     size_t for_start = fn->codesize;
     compile(S, fn, ast->node2); // Condition
+    emitcast(fn, TYPE_BOOL);
     emit(fn, OP_JMPZ); // Jump over body if zero
     size_t placeholder = emitraw32(fn, OP_INVALID); // Placeholder
     compile(S, fn, ast->node4); // Body
@@ -476,6 +488,12 @@ Function* compile(State* S, Function* fn, AST* ast)
             break;
         case AST_NULL:
             emit(fn, OP_NULL);
+            break;
+        case AST_TRUE:
+            emit(fn, OP_TRUE);
+            break;
+        case AST_FALSE:
+            emit(fn, OP_FALSE);
             break;
         case AST_VAR:
             compile_varexpr(fn, ast);
@@ -569,7 +587,11 @@ void print_code(Function* fn)
                 chars_written += fprintf(stderr, ":%04x", fetch32(ip));
                 ip += 4;
                 break;
-
+            case OP_CAST:
+                bytes[1] = fetch8(ip);
+                chars_written += fprintf(stderr, "(%s)", get_VARIANTTYPE_name((VARIANTTYPE)fetch8(ip)));
+                ++ip;
+                break;
             default:
                 break;
         }

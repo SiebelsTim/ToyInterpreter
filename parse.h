@@ -18,6 +18,8 @@
            ENUM_EL(AST_NOTOP,)       \
            ENUM_EL(AST_LONG,)    \
            ENUM_EL(AST_NULL,)    \
+           ENUM_EL(AST_TRUE,)    \
+           ENUM_EL(AST_FALSE,)   \
            ENUM_EL(AST_VAR,)     \
            ENUM_EL(AST_ASSIGNMENT,) \
            ENUM_EL(AST_FUNCTION,) \

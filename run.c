@@ -11,6 +11,9 @@
 #include "scope.h"
 #include "array-util.h"
 
+
+DEFINE_ENUM(VARIANTTYPE, ENUM_VARIANTTYPE);
+
 Variant cpy_var(Variant var)
 {
     Variant ret = var;
@@ -107,9 +110,7 @@ static inline void popn(Runtime *R, size_t count) {
     for (size_t i = 0; i < count; ++i) {
         Variant* ret = top(R);
 
-        if (ret->type == TYPE_STRING) {
-            free(ret->u.str);
-        }
+        free_var(*ret);
 
         R->stacksize--;
         assert(R->stacksize >= 0);
@@ -140,8 +141,8 @@ static inline void pushlong(Runtime* R, int64_t n)
 static inline void pushbool(Runtime* R, bool b)
 {
     Variant var;
-    var.type = TYPE_LONG;
-    var.u.lint = b;
+    var.type = TYPE_BOOL;
+    var.u.boolean = b;
     push(R, var);
 }
 
@@ -152,47 +153,129 @@ static inline void pushnull(Runtime* R)
     push(R, var);
 }
 
-static char* tostring(Runtime* R, int idx)
+static char* vartostring(Variant var)
 {
     char* buf;
-    Variant* var = stackidx(R, idx);
-    switch (var->type) {
+    switch (var.type) {
         case TYPE_STRING:
-            assert(var->u.str);
-            return strdup(var->u.str);
+            assert(var.u.str);
+            return strdup(var.u.str);
         case TYPE_LONG:
             buf = malloc(sizeof(char) * 20); // Let this be "enough"
-            snprintf(buf, sizeof(char) * 20, "%" PRId64, var->u.lint);
+            snprintf(buf, sizeof(char) * 20, "%" PRId64, var.u.lint);
             return buf;
         case TYPE_UNDEF:
             return strdup("<UNDEFINED>");
         case TYPE_NULL:
             return strdup("<null>");
+        case TYPE_BOOL:
+            return var.u.boolean ? strdup("1") : strdup("");
+        case TYPE_MAX_VALUE:
+            assert(false && "Undefined Type given");
+            break;
     }
 
     runtimeerror("Assertion failed: May not reach end of tostring function.");
     return NULL;
 }
 
+static char* tostring(Runtime* R, int idx)
+{
+    return vartostring(*stackidx(R, idx));
+}
+
+static int64_t vartolong(Variant var)
+{
+    long long ll = 0;
+    switch (var.type) {
+        case TYPE_UNDEF:
+        case TYPE_NULL:
+            return 0;
+        case TYPE_BOOL:
+            return var.u.boolean;
+        case TYPE_STRING:
+            ll = strtoll(var.u.str, NULL, 10);
+            int64_t lint = (int64_t) ll;
+            assert(ll == lint);
+            return lint;
+        case TYPE_LONG:
+            return var.u.lint;
+        case TYPE_MAX_VALUE:
+            assert(false && "Undefined Type given");
+            break;
+    }
+
+    runtimeerror("tolong for undefined value.");
+    return 0;
+}
+
 static int64_t tolong(Runtime* R, int idx)
 {
-    Variant* var = stackidx(R, idx);
-    switch (var->type) {
+    return vartolong(*stackidx(R, idx));
+}
+
+static bool vartobool(Variant var)
+{
+    switch (var.type) {
         case TYPE_UNDEF:
-            return 0;
-        case TYPE_STRING:
-            for (int i = 0; var->u.str[i] != 0; ++i) {
-                if (var->u.str[i] != '0' && var->u.str[i] != ' ') {
-                    return 1;
-                }
-            }
-            return 0;
+        case TYPE_NULL:
+            return false;
         case TYPE_LONG:
-            return var->u.lint;
-        default:
-            runtimeerror("tolong for undefined value.");
-            return 0;
+            return var.u.lint != 0;
+        case TYPE_BOOL:
+            return var.u.boolean;
+        case TYPE_STRING:
+            if (var.u.str[0] == '\0' || (var.u.str[0] == '0' && var.u.str[1] == '\0')) {
+                return false;
+            } else {
+                return true;
+            }
+        case TYPE_MAX_VALUE:
+            assert(false && "Undefined Type given");
+            break;
     }
+
+    assert(false);
+    return false;
+}
+
+static bool tobool(Runtime* R, int idx)
+{
+    return vartobool(*stackidx(R, idx));
+}
+
+static Variant vartotype(Variant var, VARIANTTYPE type)
+{
+    if (var.type == type) {
+        return cpy_var(var);
+    }
+
+    Variant ret = {.type = TYPE_UNDEF, .u.lint = 0};
+    switch (type) {
+        case TYPE_STRING:
+            ret.type = TYPE_STRING;
+            ret.u.str = vartostring(var);
+            break;
+        case TYPE_LONG:
+            ret.type = TYPE_LONG;
+            ret.u.lint = vartolong(var);
+            break;
+        case TYPE_NULL:
+            ret.type = TYPE_NULL;
+            break;
+        case TYPE_UNDEF:
+            ret.type = TYPE_UNDEF;
+            break;
+        case TYPE_BOOL:
+            ret.type = TYPE_BOOL;
+            ret.u.boolean = vartobool(var);
+            break;
+        case TYPE_MAX_VALUE:
+            assert(false && "Undefined Type given");
+            break;
+    }
+
+    return ret;
 }
 
 static Function* find_function(State* S, const char* name)
@@ -261,36 +344,48 @@ static void run_stringaddexpr(Runtime* R)
     free(rhs);
 }
 
-static bool compare_equal(Variant* lhs, Variant* rhs)
+// https://github.com/php/php-langspec/blob/1dc4793ede53b12a2b193698d9ef44709bcf9b10/spec/10-expressions.md#relational-operators
+static bool compare_equal(Variant lhs, Variant rhs)
 {
-    bool result = false;
-    switch (lhs->type) {
+    switch (lhs.type) {
         case TYPE_UNDEF:
-            result = rhs->type == TYPE_UNDEF;
-            break;
+            return rhs.type == TYPE_UNDEF;
         case TYPE_NULL:
-            result = rhs->type == TYPE_NULL;
-            break;
+            if (lhs.type == rhs.type) {
+                return true;
+            }
+
+            return compare_equal(vartotype(lhs, rhs.type), rhs);
         case TYPE_STRING:
-            if (rhs->type == TYPE_STRING) {
-                result = strcmp(lhs->u.str, rhs->u.str) == 0;
-            } else if (rhs->type == TYPE_LONG) {
-                long long ll = strtoll(lhs->u.str, NULL, 10);
-                int64_t lint = (int64_t) ll;
-                assert(ll == lint);
-                result = lint == rhs->u.lint;
+            if (rhs.type == TYPE_STRING) {
+                return strcmp(lhs.u.str, rhs.u.str) == 0;
             }
-            break;
-        case TYPE_LONG:
-            if (rhs->type == TYPE_LONG) {
-                result = lhs->u.lint == rhs->u.lint;
+            if (rhs.type == TYPE_NULL) {
+                return compare_equal(lhs, vartotype(rhs, TYPE_STRING));
             } else {
-                result = compare_equal(rhs, lhs);
+                return compare_equal(vartotype(lhs, rhs.type), rhs);
             }
+        case TYPE_LONG:
+            if (rhs.type == TYPE_LONG) {
+                return lhs.u.lint == rhs.u.lint;
+            }
+            if (rhs.type == TYPE_STRING || rhs.type == TYPE_NULL) {
+                return compare_equal(lhs, vartotype(rhs, TYPE_LONG));
+            } else {
+                return compare_equal(vartotype(lhs, rhs.type), rhs);
+            }
+        case TYPE_BOOL:
+            if (rhs.type == TYPE_BOOL) {
+                return lhs.u.boolean == rhs.u.boolean;
+            }
+            return compare_equal(lhs, vartotype(rhs, TYPE_BOOL));
+        case TYPE_MAX_VALUE:
+            assert(false && "Undefined Type given");
             break;
     }
 
-    return result;
+    assert(false);
+    return false;
 }
 
 
@@ -352,7 +447,7 @@ static void run_binop(Runtime* R, int op)
         Variant* rhs = stackidx(R, -1);
         Variant* lhs = stackidx(R, -2);
 
-        bool result = compare_equal(lhs, rhs);
+        bool result = compare_equal(*lhs, *rhs);
         popn(R, 2);
         pushbool(R, result);
         return;
@@ -382,6 +477,7 @@ void run_function(Runtime* R, Function* fn)
     while ((size_t)(R->ip - fn->code) < fn->codesize) {
         Operator op = (Operator) *R->ip++;
         int64_t lint;
+        Variant var;
         switch (op) {
             case OP_NOP:
                 break;
@@ -469,6 +565,12 @@ void run_function(Runtime* R, Function* fn)
                     R->ip += 4; // jump over jmpaddr
                 }
                 break;
+            case OP_CAST:
+                var = vartotype(*stackidx(R, -1), (VARIANTTYPE) fetch8(R->ip++));
+                pop(R);
+                push(R, var);
+                free_var(var);
+                break;
             case OP_INVALID:
                 runtimeerror("OP_INVALID");
                 break;
@@ -503,18 +605,25 @@ void print_stack(Runtime* R)
     puts("===========================\n");
     for (int i = 0; i < (int) R->stacksize; ++i) {
         Variant* var = stackidx(R, i);
+        printf("#%d ", i);
         switch (var->type) {
             case TYPE_UNDEF:
-                printf("#%d UNDEFINED", i);
+                printf("UNDEFINED");
                 break;
             case TYPE_STRING:
-                printf("#%d STRING: %s", i, var->u.str);
+                printf("STRING: %s", var->u.str);
                 break;
             case TYPE_LONG:
-                printf("#%d LONG: %" PRId64,i, var->u.lint);
+                printf("LONG: %" PRId64, var->u.lint);
                 break;
             case TYPE_NULL:
-                printf("#%d NULL", i);
+                printf("NULL");
+                break;
+            case TYPE_BOOL:
+                printf(var->u.boolean ? "TRUE" : "FALSE");
+                break;
+            case TYPE_MAX_VALUE:
+                assert(false && "Undefined Type given");
                 break;
         }
         puts("");

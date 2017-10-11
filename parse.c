@@ -185,14 +185,10 @@ static AST* parse_primary(Lexer* S)
     }
 
     if (accept(S, TK_TRUE)) {
-        ret = EXP0(AST_LONG);
-        ret->val.lint = 1;
-        return ret;
+        return EXP0(AST_TRUE);
     }
     if (accept(S, TK_FALSE)) {
-        ret = EXP0(AST_LONG);
-        ret->val.lint = 0;
-        return ret;
+        return EXP0(AST_FALSE);
     }
     if (accept(S, TK_NULL)) {
         return EXP0(AST_NULL);
