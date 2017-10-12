@@ -12,6 +12,9 @@
 #include "util.h"
 #include "builtins/std.h"
 #include "compile.h"
+#include "optimize/instruction.h"
+#include "optimize/threeaddrcode.h"
+#include "optimize/optimize.h"
 
 
 Variant cpy_var(Variant var)
@@ -438,6 +441,7 @@ void run_file(const char* filepath) {
     addfunction(S, wrap_function(fn, strdup("<pseudomain>")));
     init_builtin_functions(S);
     compile(S, fn, ast);
+    optimize_function(fn);
 
     Runtime* R = create_runtime(S);
     R->file = strdup(filepath);
