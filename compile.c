@@ -426,6 +426,7 @@ static void compile_prefixop(State* S, Function* fn, AST* ast)
     uint16_t nameidx = *(uint16_t*)(&fn->code[fn->codesize - 2]); // Next codepoint
     assert(nameidx < fn->strlen);
     emit(fn, OP_ADD1);
+    emit(fn, OP_DUP); // one for the assignment, one for returning value
     emit(fn, OP_ASSIGN);
     emitraw16(fn, nameidx);
 }
@@ -435,10 +436,10 @@ static void compile_postfixop(State* S, Function* fn, AST* ast)
     compile(S, fn, ast->node1);
     uint16_t nameidx = *(uint16_t*)(&fn->code[fn->codesize - 2]); // Next codepoint
     assert(nameidx < fn->strlen);
+    emit(fn, OP_DUP); // For returning the previous value
     emit(fn, OP_ADD1);
     emit(fn, OP_ASSIGN);
     emitraw16(fn, nameidx);
-    emit(fn, OP_SUB1);
 }
 
 static void compile_whilestmt(State* S, Function* fn, AST* ast)

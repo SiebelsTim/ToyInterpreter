@@ -280,7 +280,7 @@ static void run_assignmentexpr(Runtime* R, Function* fn)
     Variant* val = top(R);
     set_var(R, fn->strs[fetch16(R->ip)], *val);
     R->ip += 2;
-    // result of running the expr still lies on the stack.
+    pop(R);
 }
 
 void run_function(Runtime* R, Function* fn)
@@ -380,6 +380,9 @@ void run_function(Runtime* R, Function* fn)
                 break;
             case OP_ASSIGN:
                 run_assignmentexpr(R, fn);
+                break;
+            case OP_DUP:
+                push(R, *top(R));
                 break;
             case OP_JMP:
                 R->ip = fn->code + fetch32(R->ip);
