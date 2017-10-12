@@ -204,68 +204,80 @@ static bool compare_equal(Variant lhs, Variant rhs)
     return false;
 }
 
-
-static void run_binop(Runtime* R, int op)
+static void run_binop_long(Runtime* R, int op)
 {
-    if (op == '+' || op == '-' || op == '*' || op == '/' || op == '<' ||
-        op == TK_AND || op == TK_OR || op == TK_SHL || op == TK_SHR ||
-        op == TK_LTEQ || op == TK_GTEQ) {
-        int64_t rhs = tolong(R, -1);
-        pop(R);
-        int64_t lhs = tolong(R, -1);
-        pop(R);
-        int64_t result;
-        switch (op) {
-            case '+':
-                result = lhs + rhs;
-                break;
-            case '-':
-                result = lhs - rhs;
-                break;
-            case '*':
-                result = lhs * rhs;
-                break;
-            case '/':
-                result = lhs / rhs;
-                break;
-            case '<':
-                result = lhs < rhs;
-                break;
-            case TK_AND:
-                result = lhs && rhs;
-                break;
-            case TK_OR:
-                result = lhs || rhs;
-                break;
-            case TK_SHL:
-                result = lhs << rhs;
-                break;
-            case TK_SHR:
-                result = lhs >> rhs;
-                break;
-            case TK_LTEQ:
-                result = lhs <= rhs;
-                break;
-            case TK_GTEQ:
-                result = lhs >= rhs;
-                break;
-            default:
-                assert(false);
-                return;
-        }
-        pushlong(R, result);
-        return;
-    } else if (op == TK_EQ) {
-        Variant* rhs = stackidx(R, -1);
-        Variant* lhs = stackidx(R, -2);
-
-        bool result = compare_equal(*lhs, *rhs);
-        popn(R, 2);
-        pushbool(R, result);
-        return;
+    int64_t rhs = tolong(R, -1);
+    pop(R);
+    int64_t lhs = tolong(R, -1);
+    pop(R);
+    int64_t result;
+    switch (op) {
+        case '+':
+            result = lhs + rhs;
+            break;
+        case '-':
+            result = lhs - rhs;
+            break;
+        case '*':
+            result = lhs * rhs;
+            break;
+        case '/':
+            result = lhs / rhs;
+            break;
+        case TK_SHL:
+            result = lhs << rhs;
+            break;
+        case TK_SHR:
+            result = lhs >> rhs;
+            break;
+        default:
+            assert(false);
+            return;
     }
+    pushlong(R, result);
+}
 
-    runtimeerror("Undefined AST_BINOP");
+static void run_binop_bool(Runtime* R, int op)
+{
+    int64_t rhs = tolong(R, -1);
+    pop(R);
+    int64_t lhs = tolong(R, -1);
+    pop(R);
+    bool result;
+    switch (op) {
+        case '<':
+            result = lhs < rhs;
+            break;
+        case '>':
+            result = lhs > rhs;
+            break;
+        case TK_AND:
+            result = lhs && rhs;
+            break;
+        case TK_OR:
+            result = lhs || rhs;
+            break;
+        case TK_LTEQ:
+            result = lhs <= rhs;
+            break;
+        case TK_GTEQ:
+            result = lhs >= rhs;
+            break;
+        default:
+            assert(false);
+            return;
+    }
+    pushbool(R, result);
+}
+
+static void run_eq(Runtime* R)
+{
+    Variant* rhs = stackidx(R, -1);
+    Variant* lhs = stackidx(R, -2);
+
+    bool result = compare_equal(*lhs, *rhs);
+    popn(R, 2);
+    pushbool(R, result);
 }
 
 static void run_notop(Runtime* R)
@@ -320,49 +332,49 @@ void run_function(Runtime* R, Function* fn)
                 pushnull(R);
                 break;
             case OP_LTE:
-                run_binop(R, TK_LTEQ);
+                run_binop_bool(R, TK_LTEQ);
                 break;
             case OP_GTE:
-                run_binop(R, TK_GTEQ);
+                run_binop_bool(R, TK_GTEQ);
                 break;
             case OP_LT:
-                run_binop(R, '<');
+                run_binop_bool(R, '<');
                 break;
             case OP_GT:
-                run_binop(R, '>');
+                run_binop_bool(R, '>');
                 break;
             case OP_NOT:
                 run_notop(R);
                 break;
             case OP_AND:
-                run_binop(R, TK_AND);
+                run_binop_bool(R, TK_AND);
                 break;
             case OP_OR:
-                run_binop(R, TK_OR);
+                run_binop_bool(R, TK_OR);
                 break;
             case OP_EQ:
-                run_binop(R, TK_EQ);
+                run_eq(R);
                 break;
             case OP_CONCAT:
                 run_stringaddexpr(R);
                 break;
             case OP_ADD:
-                run_binop(R, '+');
+                run_binop_long(R, '+');
                 break;
             case OP_SUB:
-                run_binop(R, '-');
+                run_binop_long(R, '-');
                 break;
             case OP_MUL:
-                run_binop(R, '*');
+                run_binop_long(R, '*');
                 break;
             case OP_DIV:
-                run_binop(R, '/');
+                run_binop_long(R, '/');
                 break;
             case OP_SHL:
-                run_binop(R, TK_SHL);
+                run_binop_long(R, TK_SHL);
                 break;
             case OP_SHR:
-                run_binop(R, TK_SHR);
+                run_binop_long(R, TK_SHR);
                 break;
             case OP_ADD1:
                 lint = tolong(R, -1);
