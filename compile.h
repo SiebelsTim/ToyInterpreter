@@ -103,6 +103,15 @@ _Noreturn void compiletimeerror(char* fmt, ...);
 void print_state(State*);
 void print_code(Function* fn, char* name);
 
+size_t emitraw8(Function* fn, uint8_t op);
+size_t emitraw16(Function* fn, uint16_t op);
+size_t emitraw32(Function* fn, uint32_t op);
+size_t emitraw64(Function* fn, uint64_t op);
+size_t emit(Function* fn, Operator op);
+void emitlong(Function* fn, int64_t lint);
+void emitcast(Function* fn, VARIANTTYPE type);
+uint16_t addstring(Function* fn, char* str);
+
 
 static inline uint8_t fetch8(const codepoint_t* ip)
 {

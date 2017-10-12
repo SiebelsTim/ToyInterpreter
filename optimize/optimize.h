@@ -1,7 +1,7 @@
 #ifndef PHPINTERP_OPTIMIZE_H
 #define PHPINTERP_OPTIMIZE_H
 
-#include "threeaddrcode.h"
+#include "stack.h"
 
 typedef void (Optimizer(Stack*, size_t));
 

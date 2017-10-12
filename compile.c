@@ -144,7 +144,7 @@ static char* overtake_ast_str(AST* ast)
 
 
 // Returns position of inserted op
-static inline size_t emitraw8(Function* fn, uint8_t op)
+size_t emitraw8(Function* fn, uint8_t op)
 {
     _Static_assert(OP_MAX_VALUE == (uint8_t)OP_MAX_VALUE, "Operator does not fit into 8 bit");
     try_code_resize(fn, 1);
@@ -153,7 +153,7 @@ static inline size_t emitraw8(Function* fn, uint8_t op)
     return fn->codesize++;
 }
 
-static inline size_t emitraw16(Function* fn, uint16_t op)
+size_t emitraw16(Function* fn, uint16_t op)
 {
     uint16_t le = htole16(op);
     try_code_resize(fn, 2);
@@ -166,7 +166,7 @@ static inline size_t emitraw16(Function* fn, uint16_t op)
 }
 
 
-static inline size_t emitraw32(Function* fn, uint32_t op)
+size_t emitraw32(Function* fn, uint32_t op)
 {
     uint32_t le = htole32(op);
 
@@ -180,7 +180,7 @@ static inline size_t emitraw32(Function* fn, uint32_t op)
 }
 
 
-static inline size_t emitraw64(Function* fn, uint64_t op)
+size_t emitraw64(Function* fn, uint64_t op)
 {
     uint64_t le = htole64(op);
 
@@ -193,7 +193,7 @@ static inline size_t emitraw64(Function* fn, uint64_t op)
     return ret;
 }
 
-static inline size_t emit(Function* fn, Operator op)
+size_t emit(Function* fn, Operator op)
 {
     return emitraw8(fn, op);
 }
@@ -207,7 +207,7 @@ static inline size_t emit_replace32(Function* fn, size_t position, uint32_t op)
     return position;
 }
 
-static void emitlong(Function* fn, int64_t lint)
+void emitlong(Function* fn, int64_t lint)
 {
     emit(fn, OP_LONG);
     _Static_assert(sizeof(codepoint_t) == sizeof(lint)/8, "Long is not twice as long as Operator");
@@ -215,7 +215,7 @@ static void emitlong(Function* fn, int64_t lint)
     emitraw64(fn, (uint64_t) lint);
 }
 
-static void emitcast(Function* fn, VARIANTTYPE type)
+void emitcast(Function* fn, VARIANTTYPE type)
 {
     _Static_assert((int8_t)TYPE_MAX_VALUE == TYPE_MAX_VALUE,
                    "VARIANTTYPE does not fit into 8 bit");
@@ -223,11 +223,19 @@ static void emitcast(Function* fn, VARIANTTYPE type)
     emitraw8(fn, type);
 }
 
-static void addstring(Function* fn, char* str)
+uint16_t addstring(Function* fn, char* str)
 {
     try_strs_resize(fn);
     fn->strs[fn->strlen] = str;
-    emitraw16(fn, fn->strlen++);
+    return fn->strlen++;
+}
+
+static size_t emitstring(Function* fn, char* str)
+{
+    size_t ret = emit(fn, OP_STR);
+    emitraw16(fn, addstring(fn, str));
+
+    return ret;
 }
 
 void addfunction(State* S, FunctionWrapper fn)
@@ -244,8 +252,7 @@ void addfunction(State* S, FunctionWrapper fn)
 
 static void compile_string(Function* fn, AST* ast)
 {
-    emit(fn, OP_STR);
-    addstring(fn, overtake_ast_str(ast));
+    emitstring(fn, overtake_ast_str(ast));
 }
 
 static void compile_function(State* S, AST* ast)
@@ -292,8 +299,7 @@ static void compile_call(State* S, Function* fn, AST* ast)
         argcount++;
     }
 
-    emit(fn, OP_STR); // function name
-    addstring(fn, overtake_ast_str(ast));
+    emitstring(fn, overtake_ast_str(ast));
 
     emit(fn, OP_CALL);
     emitraw8(fn, argcount); // Number of parameters
@@ -319,8 +325,7 @@ static void compile_echostmt(State* S, Function* fn, AST* ast)
 
 static void compile_html(Function* fn, AST* ast)
 {
-    emit(fn, OP_STR);
-    addstring(fn, overtake_ast_str(ast));
+    emitstring(fn, overtake_ast_str(ast));
     emit(fn, OP_ECHO);
 }
 
@@ -331,13 +336,13 @@ static void compile_assignmentexpr(State* S, Function* fn, AST* ast)
     assert(ast->val.str);
     compile(S, fn, ast->node1);
     emit(fn, OP_ASSIGN);
-    addstring(fn, overtake_ast_str(ast));
+    emitraw16(fn, addstring(fn, overtake_ast_str(ast)));
 }
 
 static void compile_varexpr(Function* fn, AST* ast)
 {
     emit(fn, OP_LOOKUP);
-    addstring(fn, overtake_ast_str(ast));
+    emitraw16(fn, addstring(fn, overtake_ast_str(ast)));
 }
 
 static void compile_ifstmt(State* S, Function* fn, AST* ast)

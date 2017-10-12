@@ -1,4 +1,4 @@
-#include "threeaddrcode.h"
+#include "stack.h"
 
 int get_sp_change(Instruction ins)
 {
@@ -11,13 +11,13 @@ int get_sp_change(Instruction ins)
         case OP_FALSE:
         case OP_NULL:
         case OP_LOOKUP:
+        case OP_DUP:
             return +1;
         case OP_ASSIGN:
         case OP_LTE:
         case OP_GTE:
         case OP_LT:
         case OP_GT:
-        case OP_NOT:
         case OP_AND:
         case OP_OR:
         case OP_EQ:
@@ -37,6 +37,7 @@ int get_sp_change(Instruction ins)
         case OP_SUB1:
         case OP_CAST:
         case OP_NOP:
+        case OP_NOT:
             return 0;
         case OP_MAX_VALUE:
         case OP_INVALID:
@@ -48,23 +49,11 @@ int get_sp_change(Instruction ins)
     return 0;
 }
 
-TAC* instructions_to_tac(Instruction* ins, size_t ins_len)
-{
-    int sp = 0;
-    for (size_t i = 0; i < ins_len; ++i)
-    {
-        // TODO: Missing implementation
-        sp += get_sp_change(ins[i]);
-    }
-
-    return NULL;
-}
-
 Stack* recalculate_stackdepths(Stack* stack, size_t len)
 {
     int sp = 0;
     for (size_t i = 0; i < len; ++i) {
-        sp += get_sp_change(stack[i].ins);
+        sp += get_sp_change(*stack[i].ins);
         stack[i].depth = (size_t)sp;
         assert(sp >= 0);
     }
@@ -79,7 +68,7 @@ Stack* decorate_instructions(Instruction* ins, size_t ins_len)
     int sp = 0;
     for (size_t i = 0; i < ins_len; ++i) {
         sp += get_sp_change(ins[i]);
-        ret[i].ins = ins[i];
+        ret[i].ins = &ins[i];
         ret[i].depth = (size_t)sp;
         assert(sp >= 0);
     }
@@ -92,7 +81,7 @@ void print_decorated_instructions(Stack* stack, size_t len)
     printf("dest | Operator\n---------------\n");
     for (size_t i = 0; i < len; ++i) {
         printf("%zu    < ", stack[i].depth);
-        print_instruction(stack[i].ins);
+        print_instruction(*stack[i].ins);
         puts("");
     }
 }

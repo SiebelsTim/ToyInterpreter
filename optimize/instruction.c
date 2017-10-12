@@ -1,6 +1,14 @@
 #include "instruction.h"
 #include "../util.h"
 
+void free_instruction(Instruction ins)
+{
+    if (ins.operator == OP_STR || ins.operator == OP_ASSIGN ||
+        ins.operator == OP_LOOKUP) {
+        free(ins.data.str);
+    }
+}
+
 Instruction* code_to_instructions(Function* fn, size_t* n)
 {
     assert(n && "nullptr given");
@@ -9,12 +17,13 @@ Instruction* code_to_instructions(Function* fn, size_t* n)
     codepoint_t* ip = fn->code;
     while ((size_t)(ip - fn->code) < fn->codesize) {
         ret[size].operator = (Operator)*ip;
+        ret[size].width = 1;
         switch (*ip++) {
             case OP_STR:
             case OP_ASSIGN:
             case OP_LOOKUP:
                 assert(*ip < fn->strlen);
-                ret[size].data.str = fn->strs[fetch16(ip)];
+                ret[size].data.str = strdup(fn->strs[fetch16(ip)]);
                 ip += 2;
                 break;
             case OP_JMP:
@@ -41,6 +50,41 @@ Instruction* code_to_instructions(Function* fn, size_t* n)
     *n = size;
 
     return ret;
+}
+
+void emit_instruction(Function* fn, Instruction ins)
+{
+    if (ins.width == 0) return;
+    ins.width--;
+    emit_instruction(fn, ins); // TODO: Remove workaround keeping code size
+
+    emit(fn, ins.operator);
+    switch (ins.operator) {
+        case OP_CALL:
+            emitraw8(fn, (uint8_t)ins.data.lint);
+            break;
+        case OP_STR:
+        case OP_ASSIGN:
+        case OP_LOOKUP:
+            emitraw16(fn, addstring(fn, strdup(ins.data.str)));
+            break;
+        case OP_LONG:
+            emitraw64(fn, (uint64_t)ins.data.lint);
+            break;
+        case OP_JMP:
+        case OP_JMPZ:
+            emitraw32(fn, ins.data.addr);
+            break;
+        case OP_CAST:
+            emitraw8(fn, ins.data.type);
+            break;
+        case OP_MAX_VALUE:
+        case OP_INVALID:
+            assert(false);
+            return;
+        default:
+            break;
+    }
 }
 
 void print_instruction(Instruction ins)
