@@ -11,13 +11,13 @@
 
 DEFINE_ENUM(ASTTYPE, ENUM_ASTTYPE);
 
-#define EXP0(type) new_ast(type, S->lineno, NULL, NULL, NULL, NULL)
-#define EXP1(type, one) new_ast(type, S->lineno, one, NULL, NULL, NULL)
-#define EXP2(type, one, two) new_ast(type, S->lineno, one, two, NULL, NULL)
-#define EXP3(type, one, two, three) new_ast(type, S->lineno, one, two, three, NULL)
-#define EXP4(type, one, two, three, four) new_ast(type, S->lineno, one, two, three, four)
+#define EXP0(type, token) new_ast(type, token, NULL, NULL, NULL, NULL)
+#define EXP1(type, token, one) new_ast(type, token, one, NULL, NULL, NULL)
+#define EXP2(type, token, one, two) new_ast(type, token, one, two, NULL, NULL)
+#define EXP3(type, token, one, two, three) new_ast(type, token, one, two, three, NULL)
+#define EXP4(type, token, one, two, three, four) new_ast(type, token, one, two, three, four)
 
-static int get_next_token(Lexer* S)
+static Token get_next_token(Lexer* S)
 {
     S->token = get_token(S);
     return S->token;
@@ -43,7 +43,7 @@ _Noreturn static inline void parseerror(Lexer* S, char* fmt, ...)
 
 static inline bool accept(Lexer* S, int tok)
 {
-    if (S->token == tok) {
+    if (S->token.type == tok) {
         get_next_token(S);
         return true;
     }
@@ -54,7 +54,7 @@ static inline bool accept(Lexer* S, int tok)
 static inline bool expect(Lexer* S, int tok)
 {
     if (!accept(S, tok)) {
-        parseerror(S, "Expected %s, got %s", get_token_name(tok), get_token_name(S->token));
+        parseerror(S, "Expected %s, got %s", get_token_name(tok), get_token_name(S->token.type));
         return false;
     }
 
@@ -82,11 +82,11 @@ static inline bool expect_one_of(Lexer* S, int count, ...)
         }
     }
 
-    parseerror(S, "Expected one of %s got %s", expectstr, get_token_name(S->token));
+    parseerror(S, "Expected one of %s got %s", expectstr, get_token_name(S->token.type));
     return false;
 }
 
-static AST* new_ast(ASTTYPE type, lineno_t lineno, AST* one, AST* two, AST* three,
+static AST* new_ast(ASTTYPE type, Token token, AST* one, AST* two, AST* three,
                     AST* four)
 {
     AST* ret = malloc(sizeof(AST));
@@ -98,7 +98,7 @@ static AST* new_ast(ASTTYPE type, lineno_t lineno, AST* one, AST* two, AST* thre
     ret->node4 = four;
     ret->next = NULL;
     ret->val.str = NULL;
-    ret->lineno = lineno;
+    ret->lineno = token.lineno;
 
     return ret;
 }
@@ -152,9 +152,9 @@ static AST* parse_stmt(Lexer* S)
 
 static AST* parse_varexpr(Lexer* S)
 {
-    if (S->token == TK_VAR) {
+    if (S->token.type == TK_VAR) {
         AST* ret;
-        ret = EXP0(AST_VAR);
+        ret = EXP0(AST_VAR, S->token);
         ret->val.str = overtake_str(S);
         expect(S, TK_VAR); // Skip
         if (accept(S, '=')) {
@@ -170,32 +170,33 @@ static AST* parse_varexpr(Lexer* S)
 static AST* parse_primary(Lexer* S)
 {
     AST* ret;
-    if (S->token == TK_STRING) {
-        ret = EXP0(AST_STRING);
+    if (S->token.type == TK_STRING) {
+        ret = EXP0(AST_STRING, S->token);
         ret->val.str = overtake_str(S);
         expect(S, TK_STRING);
         return ret;
     }
 
-    if (S->token == TK_LONG) {
-        ret = EXP0(AST_LONG);
+    if (S->token.type == TK_LONG) {
+        ret = EXP0(AST_LONG, S->token);
         ret->val.lint = S->u.lint;
         expect(S, TK_LONG);
         return ret;
     }
 
     if (accept(S, TK_TRUE)) {
-        return EXP0(AST_TRUE);
+        return EXP0(AST_TRUE, S->token);
     }
     if (accept(S, TK_FALSE)) {
-        return EXP0(AST_FALSE);
+        return EXP0(AST_FALSE, S->token);
     }
     if (accept(S, TK_NULL)) {
-        return EXP0(AST_NULL);
+        return EXP0(AST_NULL, S->token);
     }
     if (accept(S, TK_PLUSPLUS)) {
-        if (S->token == TK_VAR) {
-            ret = EXP1(AST_PREFIXOP, parse_varexpr(S));
+        if (S->token.type == TK_VAR) {
+            Token token = S->token;
+            ret = EXP1(AST_PREFIXOP, token, parse_varexpr(S));
             ret->val.lint = '+';
             return ret;
         } else {
@@ -204,8 +205,9 @@ static AST* parse_primary(Lexer* S)
         }
     }
     if (accept(S, TK_MINUSMINUS)) {
-        if (S->token == TK_VAR) {
-            ret = EXP1(AST_PREFIXOP, parse_varexpr(S));
+        if (S->token.type == TK_VAR) {
+            Token token = S->token;
+            ret = EXP1(AST_PREFIXOP, token, parse_varexpr(S));
             ret->val.lint = '-';
             return ret;
         } else {
@@ -214,18 +216,21 @@ static AST* parse_primary(Lexer* S)
         }
     }
     if (accept(S, '!')) {
-        return EXP1(AST_NOTOP, parse_expr(S));
+        Token token = S->token;
+        return EXP1(AST_NOTOP, token, parse_expr(S));
     }
     if (accept(S, TK_RETURN)) {
-        return EXP1(AST_RETURN, parse_expr(S));
+        Token token = S->token;
+        return EXP1(AST_RETURN, token, parse_expr(S));
     }
-    if (S->token == TK_IDENTIFIER) {
+    if (S->token.type == TK_IDENTIFIER) {
         char* name = overtake_str(S);
         expect(S, TK_IDENTIFIER);
         expect(S, '(');
         AST* paramlist = parse_paramlist(S);
         expect(S, ')');
-        ret = EXP1(AST_CALL, paramlist);
+        Token token = S->token;
+        ret = EXP1(AST_CALL, token, paramlist);
         ret->val.str = name;
         return ret;
     }
@@ -241,81 +246,81 @@ static AST* parse_primary(Lexer* S)
         return ret;
     }
 
-    parseerror(S, "Unexpected token '%s', expected primary", get_token_name(S->token));
+    parseerror(S, "Unexpected token '%s', expected primary", get_token_name(S->token.type));
     return NULL;
 }
 
 
 static AST* parse_expr(Lexer* S)
 {
-
     AST* ret = parse_primary(S);
+    Token token = S->token;
 
     if (accept(S, '.')) {
-        ret = EXP2(AST_BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, token, ret, parse_expr(S));
         ret->val.lint = '.';
     }
     if (accept(S, '+')) {
-        ret = EXP2(AST_BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, token, ret, parse_expr(S));
         ret->val.lint = '+';
     }
     if (accept(S, '-')) {
-        ret = EXP2(AST_BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, token, ret, parse_expr(S));
         ret->val.lint = '-';
     }
     if (accept(S, '*')) {
-        ret = EXP2(AST_BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, token, ret, parse_expr(S));
         ret->val.lint = '*';
     }
     if (accept(S, '/')) {
-        ret = EXP2(AST_BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, token, ret, parse_expr(S));
         ret->val.lint = '/';
     }
     if (accept(S, TK_SHL)) {
-        ret = EXP2(AST_BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, token, ret, parse_expr(S));
         ret->val.lint = TK_SHL;
     }
     if (accept(S, TK_SHR)) {
-        ret = EXP2(AST_BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, token, ret, parse_expr(S));
         ret->val.lint = TK_SHR;
     }
 
     if (accept(S, TK_AND)) {
-        ret = EXP2(AST_BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, token, ret, parse_expr(S));
         ret->val.lint = TK_AND;
     }
     if (accept(S, TK_OR)) {
-        ret = EXP2(AST_BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, token, ret, parse_expr(S));
         ret->val.lint = TK_OR;
     }
 
     if (accept(S, TK_EQ)) {
-        ret = EXP2(AST_BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, token, ret, parse_expr(S));
         ret->val.lint = TK_EQ;
     }
     if (accept(S, '<')) {
-        ret = EXP2(AST_BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, token, ret, parse_expr(S));
         ret->val.lint = '<';
     }
     if (accept(S, '>')) {
-        ret = EXP2(AST_BINOP, parse_expr(S), ret);
+        ret = EXP2(AST_BINOP, token, parse_expr(S), ret);
         ret->val.lint = '<';
     }
     if (accept(S, TK_LTEQ)) {
-        ret = EXP2(AST_BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, token, ret, parse_expr(S));
         ret->val.lint = TK_LTEQ;
     }
     if (accept(S, TK_GTEQ)) {
-        ret = EXP2(AST_BINOP, ret, parse_expr(S));
+        ret = EXP2(AST_BINOP, token, ret, parse_expr(S));
         ret->val.lint = TK_GTEQ;
     }
 
     if (accept(S, TK_PLUSPLUS)) {
-        ret = EXP1(AST_POSTFIXOP, ret);
+        ret = EXP1(AST_POSTFIXOP, token, ret);
         ret->val.lint = '+';
     }
     if (accept(S, TK_MINUSMINUS)) {
-        ret = EXP1(AST_POSTFIXOP, ret);
+        ret = EXP1(AST_POSTFIXOP, token, ret);
         ret->val.lint = '-';
     }
 
@@ -324,18 +329,19 @@ static AST* parse_expr(Lexer* S)
 
 static AST* parse_echostmt(Lexer* S)
 {
+    Token token = S->token;
     AST* expr = parse_expr(S);
 
     expect(S, ';');
 
-    AST* ret = EXP1(AST_ECHO, expr);
+    AST* ret = EXP1(AST_ECHO, token, expr);
     return ret;
 }
 
 static AST* parse_blockstmt(Lexer* S)
 {
-    AST* ret = EXP0(AST_LIST);
-    while (S->token != '}') {
+    AST* ret = EXP0(AST_LIST, S->token);
+    while (S->token.type != '}') {
         ast_list_append(ret, parse_stmt(S));
     }
     expect(S, '}');
@@ -345,6 +351,7 @@ static AST* parse_blockstmt(Lexer* S)
 
 static AST* parse_ifstmt(Lexer* S)
 {
+    Token token = S->token;
     expect(S, '(');
     AST* expr = parse_expr(S);
     expect(S, ')');
@@ -356,23 +363,25 @@ static AST* parse_ifstmt(Lexer* S)
         else_body = parse_stmt(S);
     }
 
-    AST* ret = EXP3(AST_IF, expr, body, else_body);
+    AST* ret = EXP3(AST_IF, token, expr, body, else_body);
     return ret;
 }
 
 static AST* parse_whilestmt(Lexer* S)
 {
+    Token token = S->token;
     expect(S, '(');
     AST* expr = parse_expr(S);
     expect(S, ')');
 
     AST* body = parse_stmt(S);
 
-    return EXP2(AST_WHILE, expr, body);
+    return EXP2(AST_WHILE, token, expr, body);
 }
 
 static AST* parse_forstmt(Lexer* S)
 {
+    Token token = S->token;
     expect(S, '(');
     AST* init = parse_expr(S);
     expect(S, ';');
@@ -382,18 +391,18 @@ static AST* parse_forstmt(Lexer* S)
     expect(S, ')');
 
     AST* body = parse_stmt(S);
-    return EXP4(AST_FOR, init, condition, post, body);
+    return EXP4(AST_FOR, token, init, condition, post, body);
 }
 
 static AST* parse_identifier(Lexer* S)
 {
     // This function is used so we can get better line numbers for error messages
-    if (S->token != TK_IDENTIFIER) {
+    if (S->token.type != TK_IDENTIFIER) {
         expect(S, TK_IDENTIFIER); // Raise error
         return NULL;
     }
 
-    AST* ret = EXP0(AST_IDENTIFIER);
+    AST* ret = EXP0(AST_IDENTIFIER, S->token);
     ret->val.str = overtake_str(S);
     expect(S, TK_IDENTIFIER); // Skip
 
@@ -402,21 +411,21 @@ static AST* parse_identifier(Lexer* S)
 
 static AST* parse_arglist(Lexer* S)
 {
-    AST* ret = EXP0(AST_LIST);
+    AST* ret = EXP0(AST_LIST, S->token);
 
-    if (S->token == ')') {
+    if (S->token.type == ')') {
         return ret;
     }
 
     while (true) {
-        if (S->token == TK_VAR) {
-            AST* arg = EXP0(AST_ARGUMENT);
+        if (S->token.type == TK_VAR) {
+            AST* arg = EXP0(AST_ARGUMENT, S->token);
             arg->val.str = overtake_str(S);
             ast_list_append(ret, arg);
         }
         expect(S, TK_VAR);
 
-        if (S->token != ',') {
+        if (S->token.type != ',') {
             break;
         }
         get_next_token(S);
@@ -427,16 +436,16 @@ static AST* parse_arglist(Lexer* S)
 
 static AST* parse_paramlist(Lexer* S)
 {
-    AST* ret = EXP0(AST_LIST);
+    AST* ret = EXP0(AST_LIST, S->token);
 
-    if (S->token == ')') {
+    if (S->token.type == ')') {
         return ret;
     }
 
     while (true) {
         ast_list_append(ret, parse_expr(S));
 
-        if (S->token != ',') {
+        if (S->token.type != ',') {
             break;
         }
         get_next_token(S);
@@ -447,17 +456,18 @@ static AST* parse_paramlist(Lexer* S)
 
 static AST* parse_function(Lexer* S)
 {
-    if (S->token != TK_IDENTIFIER) {
-        parseerror(S, "Expected IDENTIFIER, %s given.", get_token_name(S->token));
+    if (S->token.type != TK_IDENTIFIER) {
+        parseerror(S, "Expected IDENTIFIER, %s given.", get_token_name(S->token.type));
         return NULL;
     }
+    Token token = S->token;
     AST* name = parse_identifier(S);
     expect(S, '(');
     AST* parameters = parse_arglist(S);
     expect(S, ')');
     AST* body = parse_stmt(S);
 
-    AST* ret = EXP3(AST_FUNCTION, name, parameters, body);
+    AST* ret = EXP3(AST_FUNCTION, token, name, parameters, body);
 
     return ret;
 }
@@ -465,15 +475,15 @@ static AST* parse_function(Lexer* S)
 AST* parse(FILE* file)
 {
     Lexer* S = create_lexer(file);
-    AST* ret = EXP0(AST_LIST);
+    AST* ret = EXP0(AST_LIST, S->token);
     get_next_token(S); // init
-    while (S->token != TK_END) {
-        if (S->token == TK_HTML) {
-            AST* html = EXP0(AST_HTML);
+    while (S->token.type != TK_END) {
+        if (S->token.type == TK_HTML) {
+            AST* html = EXP0(AST_HTML, S->token);
             html->val.str = S->u.string;
             ast_list_append(ret, html);
         }
-        if (S->mode != PHP || S->token == TK_OPENTAG) {
+        if (S->mode != PHP || S->token.type == TK_OPENTAG) {
             get_next_token(S);
             continue;
         }

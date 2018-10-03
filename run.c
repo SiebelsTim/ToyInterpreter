@@ -432,6 +432,7 @@ static void init_builtin_functions(State* S)
 void run_file(const char* filepath) {
     FILE* handle = fopen(filepath, "r");
     AST* ast = parse(handle);
+    print_ast(ast,0);
 
     Function* fn = create_function();
     State* S = create_state();
@@ -441,7 +442,7 @@ void run_file(const char* filepath) {
 
     Runtime* R = create_runtime(S);
     R->file = strdup(filepath);
-    // print_code(fn, "<pseudomain>");
+    print_code(fn, "<pseudomain>");
     run_function(R, fn);
     destroy_state(S);
     destroy_runtime(R);

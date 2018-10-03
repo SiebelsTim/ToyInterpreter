@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-typedef enum TOKEN {
+typedef enum TOKENTYPE {
     TK_OPENTAG = 256, // Make them outside ascii range
     TK_IDENTIFIER,
     TK_ECHO,
@@ -37,10 +37,22 @@ typedef enum TOKEN {
 
     TK_HTML,
     TK_END
-} TOKEN;
+} TOKENTYPE;
 enum MODE {
     PHP, NONPHP, EMITOPENTAG
 };
+
+typedef uint32_t lineno_t;
+
+typedef struct Token {
+    TOKENTYPE type;
+    lineno_t lineno;
+} Token;
+
+static inline Token create_token(TOKENTYPE type, lineno_t lineno) {
+    Token ret = { .type = type, .lineno = lineno };
+    return ret;
+}
 
 typedef enum VALTYPE {
     NONE,
@@ -50,13 +62,12 @@ typedef enum VALTYPE {
     ERROR
 } VALTYPE;
 
-typedef uint32_t lineno_t;
 
 typedef struct Lexer {
     enum MODE mode;
     lineno_t lineno;
     FILE* file;
-    int token;
+    Token token;
     int lexchar;
     VALTYPE val;
     union {
@@ -69,7 +80,7 @@ typedef struct Lexer {
 Lexer* create_lexer(FILE *);
 void destroy_lexer(Lexer *);
 
-int get_token(Lexer*);
+Token get_token(Lexer*);
 char* get_token_name(int);
 void print_tokenstream(Lexer*);
 

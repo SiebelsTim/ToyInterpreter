@@ -69,7 +69,7 @@ static inline int is_str(int c)
     return isalnum(c) || c == '_';
 }
 
-static TOKEN syntax_error(Lexer* S, char* fmt, ...)
+static Token syntax_error(Lexer* S, char* fmt, ...)
 {
     va_list ap;
     char msgbuf[256];
@@ -119,14 +119,14 @@ static char* fetch_str(Lexer* S, int (*proceed_condition)(int))
 }
 
 
-static int lex_ident(Lexer* S)
+static Token lex_ident(Lexer* S)
 {
     char* str = fetch_str(S, is_str);
     if (!str) {
         return syntax_error(S, "Fetching str failed.");
     }
 
-    TOKEN ret;
+    TOKENTYPE ret;
     if (strcmp(str, "echo") == 0) {
         ret = TK_ECHO;
     } else if (strcmp(str, "function") == 0) {
@@ -155,20 +155,20 @@ static int lex_ident(Lexer* S)
     }
 
     free(str);
-    return ret;
+    return create_token(ret, S->lineno);
 }
 
-static TOKEN lex_var(Lexer* S)
+static Token lex_var(Lexer* S)
 {
     assert(is_var_start(S->lexchar));
     get_next_char(S); // Skip $
     char* str = fetch_str(S, is_str);
     state_set_string(S, str);
 
-    return TK_VAR;
+    return create_token(TK_VAR, S->lineno);
 }
 
-static TOKEN lex_str(Lexer* S)
+static Token lex_str(Lexer* S)
 {
     assert(S->lexchar == '"');
     int escape = false;
@@ -212,7 +212,7 @@ static TOKEN lex_str(Lexer* S)
             sprintf(errormsg, "Expected \", got %c", S->lexchar);
         }
         free(str);
-        TOKEN ret = syntax_error(S, errormsg);
+        Token ret = syntax_error(S, errormsg);
         free(errormsg);
         return ret;
     }
@@ -221,32 +221,32 @@ static TOKEN lex_str(Lexer* S)
 
     get_next_char(S); // Skip "
 
-    return TK_STRING;
+    return create_token(TK_STRING, S->lineno);
 }
 
-int lex_num(Lexer* S)
+Token lex_num(Lexer* S)
 {
     char* numstr = fetch_str(S, isdigit);
     int64_t n = (int64_t) strtoll(numstr, NULL, 10);
     free(numstr);
     state_set_long(S, n);
 
-    return TK_LONG;
+    return create_token(TK_LONG, S->lineno);
 }
 
-#define LEX_TWICE(current, expected, TOKEN)                                    \
+#define LEX_TWICE(current, expected, TOKENTYPE)                                \
     if ((current) == (expected)) {                                             \
         if ((expected) == get_next_char(S)) {                                  \
             get_next_char(S);                                                  \
-            return TOKEN;                                                      \
+            return create_token(TOKENTYPE, S->lineno);                         \
         } else                                                                 \
-            return (expected);                                                 \
+            return create_token((expected), S->lineno);                        \
     }
 
-int get_token(Lexer* S)
+Token get_token(Lexer* S)
 {
     if (S->lexchar == EOF) {
-        return TK_END;
+        return create_token(TK_END, S->lineno);
     }
 
     if (S->mode == NONPHP) {
@@ -270,17 +270,17 @@ int get_token(Lexer* S)
             return get_token(S);
         }
         S->u.string = html;
-        return TK_HTML;
+        return create_token(TK_HTML, S->lineno);
     } else if (S->mode == EMITOPENTAG) {
         S->mode = PHP;
-        return TK_OPENTAG;
+        return create_token(TK_OPENTAG, S->lineno);
     }
 
     int c = S->lexchar;
     while (is_whitespace(c)) {
         c = get_next_char(S); // Consume whitespace
         if (c == EOF) {
-            return TK_END;
+            return create_token(TK_END, S->lineno);
         }
     }
 
@@ -310,26 +310,26 @@ int get_token(Lexer* S)
         c = get_next_char(S);
         if (c == '=') {
             get_next_char(S);
-            return TK_LTEQ;
+            return create_token(TK_LTEQ, S->lineno);
         } else if (c == '<') {
             get_next_char(S);
-            return TK_SHL;
+            return create_token(TK_SHL, S->lineno);
         }
 
-        return '<';
+        return create_token('<', S->lineno);
     }
 
     if (c == '>') {
         c = get_next_char(S);
         if (c == '=') {
             get_next_char(S);
-            return TK_GTEQ;
+            return create_token(TK_GTEQ, S->lineno);
         } else if (c == '>') {
             get_next_char(S);
-            return TK_SHR;
+            return create_token(TK_SHR, S->lineno);
         }
 
-        return '>';
+        return create_token('>', S->lineno);
     }
 
     if (c == '/') {
@@ -339,12 +339,12 @@ int get_token(Lexer* S)
             S->lineno++;
             return get_token(S);
         } else {
-            return '/';
+            return create_token('/', S->lineno);
         }
     }
 
     get_next_char(S);
-    return c;
+    return create_token(c, S->lineno);
 }
 
 Lexer* create_lexer(FILE *file)
@@ -358,6 +358,7 @@ Lexer* create_lexer(FILE *file)
     ret->lineno = 1;
     ret->mode = NONPHP;
     ret->file = file;
+    ret->token = create_token(0, 1);
     get_next_char(ret);
     return ret;
 }
@@ -421,7 +422,7 @@ char* get_token_name(int tok)
 void print_tokenstream(Lexer* S)
 {
     int tok;
-    while ((tok = get_token(S)) != TK_END) {
+    while ((tok = get_token(S).type) != TK_END) {
         char* name = get_token_name(tok);
         if (name) {
             puts(name);
