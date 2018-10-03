@@ -3,6 +3,7 @@
 
 #include <inttypes.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <assert.h>
 #include "crossplatform/stdnoreturn.h"
 #include "enum-util.h"
@@ -48,20 +49,25 @@ typedef struct Variable {
 typedef struct Runtime {
     size_t stacksize;
     size_t stackcapacity;
+    Function* function;
     codepoint_t* ip;
     Variant* stack;
     Scope* scope;
     State* state; // non-owning ptr
+    bool hasError;
 
     char* file;
 } Runtime;
 
 
-_Noreturn void runtimeerror(char* fmt);
+static _Noreturn void die(char* msg) {
+    puts(msg);
+    abort();
+}
 static inline void try_stack_resize(Runtime* R)
 {
     try_resize(&R->stackcapacity, R->stacksize, (void*)&R->stack,
-               sizeof(*R->stack), runtimeerror);
+               sizeof(*R->stack), die);
 }
 
 Variant* stackidx(Runtime* R, long idx);

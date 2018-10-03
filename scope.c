@@ -42,7 +42,7 @@ Variant lookup(Runtime *R, char *str)
 static void try_vars_resize(Scope* scope)
 {
     try_resize(&scope->capacity, scope->size, (void*)&scope->vars,
-               sizeof(*scope->vars), runtimeerror);
+               sizeof(*scope->vars), die);
 }
 
 Variable* set_var(Runtime* R, char* str, Variant var)

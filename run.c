@@ -31,23 +31,29 @@ void free_var(Variant var)
     }
 }
 
-
-_Noreturn void runtimeerror(char* fmt)
+static lineno_t get_current_line(Runtime* R) 
 {
-    printf("Runtime Error: ");
-    puts(fmt);
-    abort();
+    if (R->function == NULL) {
+        return 0;
+    }
+
+    return R->function->lineinfo[R->ip - R->function->code];
 }
 
-_Noreturn void raise_fatal(Runtime* R, char* fmt, ...)
+void runtimeerror(Runtime* R, char* fmt)
+{
+    printf("Runtime Error: %s:%d\n", fmt, get_current_line(R));
+}
+
+void raise_fatal(Runtime* R, char* fmt, ...)
 {
     printf("Fatal Error: ");
     va_list ap;
     va_start(ap, fmt);
     vprintf(fmt, ap);
     va_end(ap);
-    printf(" in %s:%zu\n", R->file, 0L);
-    abort();
+    printf(" in %s:%u\n", R->file, get_current_line(R));
+    R->hasError = true;
 }
 
 
@@ -59,8 +65,10 @@ static Runtime* create_runtime(State* S)
     ret->stacksize = 0;
     ret->stack = calloc(ret->stackcapacity, sizeof(*ret->stack));
     ret->scope = create_scope();
+    ret->hasError = false;
     ret->state = S;
     ret->file = NULL;
+    ret->function = NULL;
 
     return ret;
 }
@@ -297,8 +305,9 @@ static void run_assignmentexpr(Runtime* R, Function* fn)
 
 void run_function(Runtime* R, Function* fn)
 {
+    R->function = fn;
     R->ip = fn->code;
-    while ((size_t)(R->ip - fn->code) < fn->codesize) {
+    while ((size_t)(R->ip - fn->code) < fn->codesize && !R->hasError) {
         Operator op = (Operator) *R->ip++;
         int64_t lint;
         Variant var;
@@ -413,12 +422,14 @@ void run_function(Runtime* R, Function* fn)
                 free_var(var);
                 break;
             case OP_INVALID:
-                runtimeerror("OP_INVALID");
+                runtimeerror(R, "OP_INVALID");
                 break;
             default:
-                runtimeerror("Unexpected OP");
+                runtimeerror(R, "Unexpected OP");
         }
     }
+
+    R->function = NULL;
 }
 
 static void init_builtin_functions(State* S)
@@ -432,7 +443,7 @@ static void init_builtin_functions(State* S)
 void run_file(const char* filepath) {
     FILE* handle = fopen(filepath, "r");
     AST* ast = parse(handle);
-    print_ast(ast,0);
+    // print_ast(ast,0);
 
     Function* fn = create_function();
     State* S = create_state();
@@ -442,7 +453,7 @@ void run_file(const char* filepath) {
 
     Runtime* R = create_runtime(S);
     R->file = strdup(filepath);
-    print_code(fn, "<pseudomain>");
+    // print_code(fn, "<pseudomain>");
     run_function(R, fn);
     destroy_state(S);
     destroy_runtime(R);

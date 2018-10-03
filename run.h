@@ -7,8 +7,8 @@
 #include "stack.h"
 
 
-_Noreturn void runtimeerror(char* fmt);
-_Noreturn void raise_fatal(Runtime* R, char*, ...);
+void runtimeerror(Runtime* R, char* fmt);
+void raise_fatal(Runtime* R, char*, ...);
 void run_file(const char*);
 void run_function(Runtime*, Function*);
 Variant cpy_var(Variant var);

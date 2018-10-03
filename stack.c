@@ -109,7 +109,7 @@ char* vartostring(Variant var)
             break;
     }
 
-    runtimeerror("Assertion failed: May not reach end of tostring function.");
+    die("Assertion failed: May not reach end of tostring function.");
     return NULL;
 }
 
@@ -142,7 +142,7 @@ int64_t vartolong(Variant var)
             break;
     }
 
-    runtimeerror("tolong for undefined value.");
+    die("tolong for undefined value.");
     return 0;
 }
 
@@ -212,7 +212,7 @@ Variant vartotype(Variant var, VARIANTTYPE type)
             break;
         case TYPE_FUNCTION:
         case TYPE_CFUNCTION:
-            runtimeerror("Cannot convert function");
+            die("Cannot convert function");
             break;
         case TYPE_MAX_VALUE:
             assert(false && "Undefined Type given");
