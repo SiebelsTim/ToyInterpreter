@@ -533,7 +533,7 @@ void print_ast(AST* ast, int level)
         putchar('|');
         putchar(' ');
     }
-    printf("%p %s: ", ast, get_ASTTYPE_name(ast->type));
+    printf("%p %s (%d): ", ast, get_ASTTYPE_name(ast->type), ast->lineno);
 
     char* escaped;
     switch (ast->type) {

@@ -23,6 +23,7 @@ Function* create_function()
     ret->codesize = 0;
     ret->codecapacity = 1 << 8;
     ret->code = calloc(sizeof(*ret->code), ret->codecapacity);
+    ret->lineinfo = calloc(sizeof(*ret->lineinfo), ret->codecapacity);
 
     ret->strcapacity = 4;
     ret->strlen = 0;
@@ -34,6 +35,7 @@ Function* create_function()
 void free_function(Function* fn)
 {
     free(fn->code);
+    free(fn->lineinfo);
 
     for (int i = 0; i < fn->strlen; ++i) {
         free(fn->strs[i]);
@@ -116,9 +118,11 @@ static inline void try_code_resize(Function* fn, int n)
             fn->codecapacity *= 2;
         }
         codepoint_t* tmp = realloc(fn->code, sizeof(*fn->code) * fn->codecapacity);
-        if (!tmp) compiletimeerror("Out of memory");
+        lineno_t* lineinfotmp = realloc(fn->lineinfo, sizeof(*fn->lineinfo) * fn->codecapacity);
+        if (!tmp || !lineinfotmp) compiletimeerror("Out of memory");
 
         fn->code = tmp;
+        fn->lineinfo = lineinfotmp;
     }
 }
 
@@ -144,20 +148,23 @@ static char* overtake_ast_str(AST* ast)
 
 
 // Returns position of inserted op
-static inline size_t emitraw8(Function* fn, uint8_t op)
+static inline size_t emitraw8(Function* fn, uint8_t op, lineno_t lineno)
 {
     _Static_assert(OP_MAX_VALUE == (uint8_t)OP_MAX_VALUE, "Operator does not fit into 8 bit");
     try_code_resize(fn, 1);
     fn->code[fn->codesize] = op;
+    fn->lineinfo[fn->codesize] = lineno;
 
     return fn->codesize++;
 }
 
-static inline size_t emitraw16(Function* fn, uint16_t op)
+static inline size_t emitraw16(Function* fn, uint16_t op, lineno_t lineno)
 {
     uint16_t le = htole16(op);
     try_code_resize(fn, 2);
     *(uint16_t*)(fn->code + fn->codesize) = le;
+    fn->lineinfo[fn->codesize] = lineno;
+    fn->lineinfo[fn->codesize + 1] = lineno;
 
     const size_t ret = fn->codesize;
     fn->codesize += 2;
@@ -165,13 +172,16 @@ static inline size_t emitraw16(Function* fn, uint16_t op)
     return ret;
 }
 
-
-static inline size_t emitraw32(Function* fn, uint32_t op)
+static inline size_t emitraw32(Function* fn, uint32_t op, lineno_t lineno)
 {
     uint32_t le = htole32(op);
 
     try_code_resize(fn, 4);
     *(uint32_t*)(fn->code + fn->codesize) = le;
+
+    for (int i = 0; i < 4; ++i) {
+        fn->lineinfo[fn->codesize + i] = lineno;
+    }
 
     const size_t ret = fn->codesize;
     fn->codesize += 4;
@@ -179,13 +189,16 @@ static inline size_t emitraw32(Function* fn, uint32_t op)
     return ret;
 }
 
-
-static inline size_t emitraw64(Function* fn, uint64_t op)
+static inline size_t emitraw64(Function* fn, uint64_t op, lineno_t lineno)
 {
     uint64_t le = htole64(op);
 
     try_code_resize(fn, 8);
     *(uint64_t*)(fn->code + fn->codesize) = le;
+
+    for (int i = 0; i < 8; ++i) {
+        fn->lineinfo[fn->codesize + i] = lineno;
+    }
 
     const size_t ret = fn->codesize;
     fn->codesize += 8;
@@ -193,9 +206,9 @@ static inline size_t emitraw64(Function* fn, uint64_t op)
     return ret;
 }
 
-static inline size_t emit(Function* fn, Operator op)
+static inline size_t emit(Function* fn, Operator op, lineno_t lineno)
 {
-    return emitraw8(fn, op);
+    return emitraw8(fn, op, lineno);
 }
 
 
@@ -207,27 +220,27 @@ static inline size_t emit_replace32(Function* fn, size_t position, uint32_t op)
     return position;
 }
 
-static void emitlong(Function* fn, int64_t lint)
+static void emitlong(Function* fn, int64_t lint, lineno_t lineno)
 {
-    emit(fn, OP_LONG);
+    emit(fn, OP_LONG, lineno);
     _Static_assert(sizeof(codepoint_t) == sizeof(lint)/8, "Long is not twice as long as Operator");
     _Static_assert(sizeof(lint) == 8, "Long is not 8 bytes.");
-    emitraw64(fn, (uint64_t) lint);
+    emitraw64(fn, (uint64_t) lint, lineno);
 }
 
-static void emitcast(Function* fn, VARIANTTYPE type)
+static void emitcast(Function* fn, VARIANTTYPE type, lineno_t lineno)
 {
     _Static_assert((int8_t)TYPE_MAX_VALUE == TYPE_MAX_VALUE,
                    "VARIANTTYPE does not fit into 8 bit");
-    emit(fn, OP_CAST);
-    emitraw8(fn, type);
+    emit(fn, OP_CAST, lineno);
+    emitraw8(fn, type, lineno);
 }
 
-static void addstring(Function* fn, char* str)
+static void addstring(Function* fn, char* str, lineno_t lineno)
 {
     try_strs_resize(fn);
     fn->strs[fn->strlen] = str;
-    emitraw16(fn, fn->strlen++);
+    emitraw16(fn, fn->strlen++, lineno);
 }
 
 void addfunction(State* S, FunctionWrapper fn)
@@ -244,8 +257,8 @@ void addfunction(State* S, FunctionWrapper fn)
 
 static void compile_string(Function* fn, AST* ast)
 {
-    emit(fn, OP_STR);
-    addstring(fn, overtake_ast_str(ast));
+    emit(fn, OP_STR, ast->lineno);
+    addstring(fn, overtake_ast_str(ast), ast->lineno);
 }
 
 static void compile_function(State* S, AST* ast)
@@ -274,8 +287,8 @@ static void compile_function(State* S, AST* ast)
     addfunction(S, wrap_function(fn, overtake_ast_str(name)));
     compile(S, fn, body);
 
-    emit(fn, OP_NULL); // Safeguard to guarantee that we have a return value
-    emit(fn, OP_RETURN);
+    emit(fn, OP_NULL, ast->node3->lineno); // Safeguard to guarantee that we have a return value
+    emit(fn, OP_RETURN, ast->node3->lineno);
 }
 
 static void compile_call(State* S, Function* fn, AST* ast)
@@ -292,11 +305,11 @@ static void compile_call(State* S, Function* fn, AST* ast)
         argcount++;
     }
 
-    emit(fn, OP_STR); // function name
-    addstring(fn, overtake_ast_str(ast));
+    emit(fn, OP_STR, ast->lineno); // function name
+    addstring(fn, overtake_ast_str(ast), ast->lineno);
 
-    emit(fn, OP_CALL);
-    emitraw8(fn, argcount); // Number of parameters
+    emit(fn, OP_CALL, ast->lineno);
+    emitraw8(fn, argcount, ast->lineno); // Number of parameters
 }
 
 static void compile_blockstmt(State* S, Function* fn, AST* ast)
@@ -314,14 +327,14 @@ static void compile_echostmt(State* S, Function* fn, AST* ast)
     assert(ast->type == AST_ECHO);
     assert(ast->node1);
     compile(S, fn, ast->node1);
-    emit(fn, OP_ECHO);
+    emit(fn, OP_ECHO, ast->lineno);
 }
 
 static void compile_html(Function* fn, AST* ast)
 {
-    emit(fn, OP_STR);
-    addstring(fn, overtake_ast_str(ast));
-    emit(fn, OP_ECHO);
+    emit(fn, OP_STR, ast->lineno);
+    addstring(fn, overtake_ast_str(ast), ast->lineno);
+    emit(fn, OP_ECHO, ast->lineno);
 }
 
 static void compile_assignmentexpr(State* S, Function* fn, AST* ast)
@@ -330,14 +343,14 @@ static void compile_assignmentexpr(State* S, Function* fn, AST* ast)
     assert(ast->node1);
     assert(ast->val.str);
     compile(S, fn, ast->node1);
-    emit(fn, OP_ASSIGN);
-    addstring(fn, overtake_ast_str(ast));
+    emit(fn, OP_ASSIGN, ast->lineno);
+    addstring(fn, overtake_ast_str(ast), ast->lineno);
 }
 
 static void compile_varexpr(Function* fn, AST* ast)
 {
-    emit(fn, OP_LOOKUP);
-    addstring(fn, overtake_ast_str(ast));
+    emit(fn, OP_LOOKUP, ast->lineno);
+    addstring(fn, overtake_ast_str(ast), ast->lineno);
 }
 
 static void compile_ifstmt(State* S, Function* fn, AST* ast)
@@ -345,22 +358,22 @@ static void compile_ifstmt(State* S, Function* fn, AST* ast)
     assert(ast->type == AST_IF);
     assert(ast->node1 && ast->node2);
     compile(S, fn, ast->node1);
-    emitcast(fn, TYPE_BOOL);
-    emit(fn, OP_JMPZ); // Jump over code if false
-    size_t placeholder = emitraw32(fn, OP_INVALID); // Placeholder
+    emitcast(fn, TYPE_BOOL, ast->node1->lineno);
+    emit(fn, OP_JMPZ, ast->node1->lineno); // Jump over code if false
+    size_t placeholder = emitraw32(fn, OP_INVALID, -1); // Placeholder
     compile(S, fn, ast->node2);
-    emit_replace32(fn, placeholder, (Operator) emit(fn, OP_NOP)); // place to jump over if
+    emit_replace32(fn, placeholder, (Operator) emit(fn, OP_NOP, ast->node2->lineno)); // place to jump over if
     assert((Operator)fn->codesize == fn->codesize);
 
     if (ast->node3) {
-        emit(fn, OP_JMP);
-        size_t else_placeholder = emitraw32(fn, OP_INVALID); // placeholder
+        emit(fn, OP_JMP, ast->node3->lineno);
+        size_t else_placeholder = emitraw32(fn, OP_INVALID, ast->node3->lineno); // placeholder
         // When we get here, we already assigned a jmp to here for the else branch
         // However, we need to increase it by one two jmp over this jmp
         emit_replace32(fn, placeholder, (Operator) fn->codesize);
 
         compile(S, fn, ast->node3);
-        emit_replace32(fn, else_placeholder, (Operator) emit(fn, OP_NOP));
+        emit_replace32(fn, else_placeholder, (Operator) emit(fn, OP_NOP, ast->node3->lineno));
     }
 }
 
@@ -372,46 +385,46 @@ static void compile_binop(State* S, Function* fn, AST* ast)
     compile(S, fn, ast->node2);
     switch (ast->val.lint) {
         case '+':
-            emit(fn, OP_ADD);
+            emit(fn, OP_ADD, ast->lineno);
             break;
         case '-':
-            emit(fn, OP_SUB);
+            emit(fn, OP_SUB, ast->lineno);
             break;
         case '/':
-            emit(fn, OP_DIV);
+            emit(fn, OP_DIV, ast->lineno);
             break;
         case '*':
-            emit(fn, OP_MUL);
+            emit(fn, OP_MUL, ast->lineno);
             break;
         case '.':
-            emit(fn, OP_CONCAT);
+            emit(fn, OP_CONCAT, ast->lineno);
             break;
         case TK_SHL:
-            emit(fn, OP_SHL);
+            emit(fn, OP_SHL, ast->lineno);
             break;
         case TK_SHR:
-            emit(fn, OP_SHR);
+            emit(fn, OP_SHR, ast->lineno);
             break;
         case TK_LTEQ:
-            emit(fn, OP_LTE);
+            emit(fn, OP_LTE, ast->lineno);
             break;
         case TK_GTEQ:
-            emit(fn, OP_GTE);
+            emit(fn, OP_GTE, ast->lineno);
             break;
         case '<':
-            emit(fn, OP_LT);
+            emit(fn, OP_LT, ast->lineno);
             break;
         case '>':
-            emit(fn, OP_GT);
+            emit(fn, OP_GT, ast->lineno);
             break;
         case TK_EQ:
-            emit(fn, OP_EQ);
+            emit(fn, OP_EQ, ast->lineno);
             break;
         case TK_AND:
-            emit(fn, OP_AND);
+            emit(fn, OP_AND, ast->lineno);
             break;
         case TK_OR:
-            emit(fn, OP_OR);
+            emit(fn, OP_OR, ast->lineno);
             break;
         default:
             assert(false && "Undefined BINOP");
@@ -425,10 +438,10 @@ static void compile_prefixop(State* S, Function* fn, AST* ast)
     compile(S, fn, ast->node1);
     uint16_t nameidx = *(uint16_t*)(&fn->code[fn->codesize - 2]); // Next codepoint
     assert(nameidx < fn->strlen);
-    emit(fn, OP_ADD1);
-    emit(fn, OP_DUP); // one for the assignment, one for returning value
-    emit(fn, OP_ASSIGN);
-    emitraw16(fn, nameidx);
+    emit(fn, OP_ADD1, ast->lineno);
+    emit(fn, OP_DUP, ast->lineno); // one for the assignment, one for returning val
+    emit(fn, OP_ASSIGN, ast->lineno);
+    emitraw16(fn, nameidx, ast->lineno);
 }
 static void compile_postfixop(State* S, Function* fn, AST* ast)
 {
@@ -436,10 +449,10 @@ static void compile_postfixop(State* S, Function* fn, AST* ast)
     compile(S, fn, ast->node1);
     uint16_t nameidx = *(uint16_t*)(&fn->code[fn->codesize - 2]); // Next codepoint
     assert(nameidx < fn->strlen);
-    emit(fn, OP_DUP); // For returning the previous value
-    emit(fn, OP_ADD1);
-    emit(fn, OP_ASSIGN);
-    emitraw16(fn, nameidx);
+    emit(fn, OP_DUP, ast->lineno); // For returning the previous value
+    emit(fn, OP_ADD1, ast->lineno);
+    emit(fn, OP_ASSIGN, ast->lineno);
+    emitraw16(fn, nameidx, ast->lineno);
 }
 
 static void compile_whilestmt(State* S, Function* fn, AST* ast)
@@ -448,18 +461,18 @@ static void compile_whilestmt(State* S, Function* fn, AST* ast)
     assert(ast->node1 && ast->node2);
     size_t while_start = fn->codesize;
     compile(S, fn, ast->node1);
-    emitcast(fn, TYPE_BOOL);
-    emit(fn, OP_JMPZ); // Jump over body if zero
-    size_t placeholder = emitraw32(fn, OP_INVALID); // Placeholder
+    emitcast(fn, TYPE_BOOL, ast->lineno);
+    emit(fn, OP_JMPZ, ast->lineno);                 // Jump over body if zero
+    size_t placeholder = emitraw32(fn, OP_INVALID, -1); // Placeholder
     compile(S, fn, ast->node2);
 
-    emit(fn, OP_JMP); // Jump back to while start
+    emit(fn, OP_JMP, ast->node2->lineno); // Jump back to while start
     if ((uint32_t) while_start != while_start) {
         compiletimeerror("Jump address overflowed while compiling while statement");
     }
-    emitraw32(fn, (uint32_t) while_start);
+    emitraw32(fn, (uint32_t) while_start, ast->node2->lineno);
 
-    emit_replace32(fn, placeholder, (Operator) emit(fn, OP_NOP));
+    emit_replace32(fn, placeholder, (Operator) emit(fn, OP_NOP, ast->lineno));
 }
 
 
@@ -469,19 +482,19 @@ static void compile_forstmt(State* S, Function* fn, AST* ast) {
     compile(S, fn, ast->node1); // Init
     size_t for_start = fn->codesize;
     compile(S, fn, ast->node2); // Condition
-    emitcast(fn, TYPE_BOOL);
-    emit(fn, OP_JMPZ); // Jump over body if zero
-    size_t placeholder = emitraw32(fn, OP_INVALID); // Placeholder
+    emitcast(fn, TYPE_BOOL, ast->lineno);
+    emit(fn, OP_JMPZ, ast->lineno);                 // Jump over body if zero
+    size_t placeholder = emitraw32(fn, OP_INVALID, -1); // Placeholder
     compile(S, fn, ast->node4); // Body
     compile(S, fn, ast->node3); // Post expression
 
-    emit(fn, OP_JMP); // Jump back to for start
+    emit(fn, OP_JMP, ast->node3->lineno); // Jump back to for start
     if ((uint32_t) for_start != for_start) {
         compiletimeerror("Jump address overflowed while compiling while statement");
     }
-    emitraw32(fn, (uint32_t) for_start);
+    emitraw32(fn, (uint32_t) for_start, ast->node3->lineno);
 
-    emit_replace32(fn, placeholder, (Operator) emit(fn, OP_NOP));
+    emit_replace32(fn, placeholder, (Operator) emit(fn, OP_NOP, ast->lineno));
 }
 
 
@@ -493,7 +506,7 @@ Function* compile(State* S, Function* fn, AST* ast)
             break;
         case AST_RETURN:
             compile(S, fn, ast->node1);
-            emit(fn, OP_RETURN);
+            emit(fn, OP_RETURN, ast->lineno);
             break;
         case AST_CALL:
             compile_call(S, fn, ast);
@@ -521,19 +534,19 @@ Function* compile(State* S, Function* fn, AST* ast)
             break;
         case AST_NOTOP:
             compile(S, fn, ast->node1);
-            emit(fn, OP_NOT);
+            emit(fn, OP_NOT, ast->lineno);
             break;
         case AST_LONG:
-            emitlong(fn, ast->val.lint);
+            emitlong(fn, ast->val.lint, ast->lineno);
             break;
         case AST_NULL:
-            emit(fn, OP_NULL);
+            emit(fn, OP_NULL, ast->lineno);
             break;
         case AST_TRUE:
-            emit(fn, OP_TRUE);
+            emit(fn, OP_TRUE, ast->lineno);
             break;
         case AST_FALSE:
-            emit(fn, OP_FALSE);
+            emit(fn, OP_FALSE, ast->lineno);
             break;
         case AST_VAR:
             compile_varexpr(fn, ast);
@@ -575,9 +588,15 @@ void print_code(Function* fn, char* name)
     int64_t lint;
     fprintf(stderr, "Function: %s (line %u)\n", name, fn->lineno_defined);
 
-    fprintf(stderr, "\n-----------------------\n");
+    fprintf(stderr, "Addr:lineno| code                                   ; Bytecode");
+    fprintf(stderr, "\n---------------------------------------------------------------------\n");
     while ((size_t)(ip - fn->code) < fn->codesize) {
         fprintf(stderr, "%04lx: ", ip - fn->code);
+        if (ip > fn->code && fn->lineinfo[ip - fn->code] == fn->lineinfo[ip - fn->code - 1]) {
+            fprintf(stderr, "     |");
+        } else {
+            fprintf(stderr, "%04d |", fn->lineinfo[ip - fn->code]);
+        }
         Operator op = (Operator)*ip;
         const char* opname = get_Operator_name(op);
         size_t chars_written = 0;

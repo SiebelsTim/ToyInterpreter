@@ -53,7 +53,6 @@ typedef struct Runtime {
     Scope* scope;
     State* state; // non-owning ptr
 
-    size_t line;
     char* file;
 } Runtime;
 

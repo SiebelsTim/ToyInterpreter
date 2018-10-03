@@ -61,6 +61,7 @@ typedef struct Function {
     size_t codesize;
     size_t codecapacity;
     codepoint_t* code;
+    lineno_t* lineinfo;
 
     char** strs;
     uint16_t strlen;

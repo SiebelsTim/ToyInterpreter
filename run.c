@@ -31,6 +31,7 @@ void free_var(Variant var)
     }
 }
 
+
 _Noreturn void runtimeerror(char* fmt)
 {
     printf("Runtime Error: ");
@@ -45,7 +46,7 @@ _Noreturn void raise_fatal(Runtime* R, char* fmt, ...)
     va_start(ap, fmt);
     vprintf(fmt, ap);
     va_end(ap);
-    printf(" in %s:%zu\n", R->file, R->line);
+    printf(" in %s:%zu\n", R->file, 0L);
     abort();
 }
 
@@ -59,7 +60,6 @@ static Runtime* create_runtime(State* S)
     ret->stack = calloc(ret->stackcapacity, sizeof(*ret->stack));
     ret->scope = create_scope();
     ret->state = S;
-    ret->line = 0;
     ret->file = NULL;
 
     return ret;
@@ -441,7 +441,7 @@ void run_file(const char* filepath) {
 
     Runtime* R = create_runtime(S);
     R->file = strdup(filepath);
-    //print_code(fn, "<pseudomain>");
+    // print_code(fn, "<pseudomain>");
     run_function(R, fn);
     destroy_state(S);
     destroy_runtime(R);
