@@ -123,6 +123,7 @@ static AST* parse_forstmt(Lexer* S);
 static AST* parse_blockstmt(Lexer* S);
 static AST* parse_function(Lexer* S);
 static AST* parse_paramlist(Lexer* S);
+static AST* parse_identifier(Lexer* S);
 
 static AST* parse_stmt(Lexer* S)
 {
@@ -226,13 +227,19 @@ static AST* parse_primary(Lexer* S)
     if (S->token.type == TK_IDENTIFIER) {
         char* name = overtake_str(S);
         expect(S, TK_IDENTIFIER);
-        expect(S, '(');
-        AST* paramlist = parse_paramlist(S);
-        expect(S, ')');
-        Token token = S->token;
-        ret = EXP1(AST_CALL, token, paramlist);
-        ret->val.str = name;
-        return ret;
+        if (accept(S, '(')) { // function
+            AST* paramlist = parse_paramlist(S);
+            expect(S, ')');
+            Token token = S->token;
+            ret = EXP1(AST_CALL, token, paramlist);
+            ret->val.str = name;
+            return ret;
+        } else { // constant
+            Token token = S->token;
+            ret = EXP0(AST_IDENTIFIER, token);
+            ret->val.str = name;
+            return ret;
+        }
     }
 
     AST* varexpr = NULL;

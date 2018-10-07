@@ -421,6 +421,9 @@ void run_function(Runtime* R, Function* fn)
                 push(R, var);
                 free_var(var);
                 break;
+            case OP_GETLINE:
+                pushlong(R, get_current_line(R));
+                break;
             case OP_INVALID:
                 runtimeerror(R, "OP_INVALID");
                 break;

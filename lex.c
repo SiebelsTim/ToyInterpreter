@@ -46,7 +46,7 @@ static int get_next_char(Lexer* S)
 
 static inline int is_ident_start(int c)
 {
-    return isalpha(c);
+    return isalpha(c) || c == '_';
 }
 
 static inline int is_str_start(int c)

@@ -497,6 +497,15 @@ static void compile_forstmt(State* S, Function* fn, AST* ast) {
     emit_replace32(fn, placeholder, (Operator) emit(fn, OP_NOP, ast->lineno));
 }
 
+static void compile_constant(Function* fn, AST* ast) {
+    assert(ast->type == AST_IDENTIFIER);
+    if (strcmp(ast->val.str, "__LINE__") == 0) {
+        emit(fn, OP_GETLINE, ast->lineno);
+    } else {
+        compiletimeerror("Only currently supported constants are: '__LINE__'. '%s' not supported", ast->val.str);
+    }
+    free(ast->val.str);
+}
 
 Function* compile(State* S, Function* fn, AST* ast)
 {
@@ -562,6 +571,9 @@ Function* compile(State* S, Function* fn, AST* ast)
             break;
         case AST_FOR:
             compile_forstmt(S, fn, ast);
+            break;
+        case AST_IDENTIFIER:
+            compile_constant(fn, ast);
             break;
         default:
             compiletimeerror("Unexpected Type '%s'", get_ASTTYPE_name(ast->type));
