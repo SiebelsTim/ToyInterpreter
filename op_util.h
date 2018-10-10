@@ -12,6 +12,8 @@ static inline size_t op_len(Operator op)
         case OP_STR:
         case OP_ASSIGN:
         case OP_LOOKUP:
+        case OP_CLOOKUP:
+        case OP_CONSTDECL:
             return 3;
         case OP_CALL:
         case OP_CAST:

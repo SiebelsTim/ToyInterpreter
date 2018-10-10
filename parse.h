@@ -22,6 +22,7 @@
            ENUM_EL(AST_FALSE,)   \
            ENUM_EL(AST_VAR,)     \
            ENUM_EL(AST_ASSIGNMENT,) \
+           ENUM_EL(AST_CONSTDECL,) \
            ENUM_EL(AST_FUNCTION,) \
            ENUM_EL(AST_ARGUMENT,)  \
            ENUM_EL(AST_IDENTIFIER, )  \

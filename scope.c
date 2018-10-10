@@ -27,11 +27,16 @@ void destroy_scope(Scope* scope)
     free(scope);
 }
 
-Variant lookup(Runtime *R, char *str)
+Variant lookup(Runtime* R, char* str)
+{
+    return lookupWithFlags(R, str, 0);
+}
+
+Variant lookupWithFlags(Runtime* R, char* str, int flags)
 {
     Variable* vars = R->scope->vars;
     for (size_t i = 0; i < R->scope->size; ++i) {
-        if (strcmp(str, vars[i].name) == 0) {
+        if (strcmp(str, vars[i].name) == 0 && (flags == vars[i].flags || vars[i].flags & flags)) {
             return vars[i].value;
         }
     }
@@ -45,14 +50,22 @@ static void try_vars_resize(Scope* scope)
                sizeof(*scope->vars), die);
 }
 
-Variable* set_var(Runtime* R, char* str, Variant var)
+Variable* set_var(Runtime* R, char* str, Variant var, int flags)
 {
     Variable* vars = R->scope->vars;
     // existing variable
     for (size_t i = 0; i < R->scope->size; ++i) {
-        if (strcmp(str, vars[i].name) == 0) {
+        if (strcmp(str, vars[i].name) == 0 && (flags == vars[i].flags || vars[i].flags & flags)) {
+            if (flags & VAR_FLAG_CONST) {
+                runtimeerror(R, "Cannot redeclare constant");
+                return NULL;
+            }
             free_var(vars[i].value);
             vars[i].value = cpy_var(var);
+            if (vars[i].flags != flags) {
+                runtimeerror(R, "Cannot reassign flags");
+                return NULL;
+            }
             return &vars[i];
         }
     }
@@ -61,6 +74,7 @@ Variable* set_var(Runtime* R, char* str, Variant var)
     const size_t idx = R->scope->size++;
     vars[idx].name = strdup(str);
     vars[idx].value = cpy_var(var);
+    vars[idx].flags = flags;
 
     return &vars[idx];
 }

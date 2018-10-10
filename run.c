@@ -43,6 +43,7 @@ static lineno_t get_current_line(Runtime* R)
 void runtimeerror(Runtime* R, char* fmt)
 {
     printf("Runtime Error: %s:%d\n", fmt, get_current_line(R));
+    R->hasError = true;
 }
 
 void raise_fatal(Runtime* R, char* fmt, ...)
@@ -121,7 +122,7 @@ static void run_call(Runtime* R)
 
         Runtime* newruntime = create_runtime(R->state);
         for (int i = 0; i < param_count; ++i) {
-            set_var(newruntime, callee->u.function->params[i], *top(R)); // Transfer arguments
+            set_var(newruntime, callee->u.function->params[i], *top(R), 0); // Transfer arguments
             pop(R);
         }
         run_function(newruntime, callee->u.function);
@@ -295,10 +296,10 @@ static void run_notop(Runtime* R)
     pushlong(R, !lint);
 }
 
-static void run_assignmentexpr(Runtime* R, Function* fn)
+static void run_assignmentexpr(Runtime* R, Function* fn, int flags)
 {
     Variant* val = top(R);
-    set_var(R, fn->strs[fetch16(R->ip)], *val);
+    set_var(R, fn->strs[fetch16(R->ip)], *val, flags);
     R->ip += 2;
     pop(R);
 }
@@ -399,9 +400,16 @@ void run_function(Runtime* R, Function* fn)
                 push(R, lookup(R, fn->strs[fetch16(R->ip)]));
                 R->ip += 2;
                 break;
-            case OP_ASSIGN:
-                run_assignmentexpr(R, fn);
+            case OP_CLOOKUP:
+                push(R, lookupWithFlags(R, fn->strs[fetch16(R->ip)], VAR_FLAG_CONST));
+                R->ip += 2;
                 break;
+            case OP_ASSIGN:
+                run_assignmentexpr(R, fn, 0);
+                break;
+            case OP_CONSTDECL:
+                run_assignmentexpr(R, fn, VAR_FLAG_CONST);
+                break;    
             case OP_DUP:
                 push(R, *top(R));
                 break;

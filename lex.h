@@ -20,6 +20,7 @@ typedef enum TOKENTYPE {
     TK_FALSE,
     TK_NULL,
     TK_VAR,
+    TK_CONST,
 
     TK_AND,
     TK_OR,

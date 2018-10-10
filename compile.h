@@ -38,6 +38,8 @@
         ENUM_EL(OP_SHR,) \
         ENUM_EL(OP_ASSIGN,) \
         ENUM_EL(OP_LOOKUP,) \
+        ENUM_EL(OP_CLOOKUP,) \
+        ENUM_EL(OP_CONSTDECL,) \
         ENUM_EL(OP_DUP,)    \
         ENUM_EL(OP_JMP,) \
         ENUM_EL(OP_JMPZ,) \

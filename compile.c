@@ -353,6 +353,16 @@ static void compile_varexpr(Function* fn, AST* ast)
     addstring(fn, overtake_ast_str(ast), ast->lineno);
 }
 
+static void compile_constdecl(State* S, Function* fn, AST* ast)
+{
+    assert(ast->type == AST_CONSTDECL);
+    assert(ast->node1 && ast->node2);
+    assert(ast->node1->val.str);
+    compile(S, fn, ast->node2);
+    emit(fn, OP_CONSTDECL, ast->lineno);
+    addstring(fn, overtake_ast_str(ast->node1), ast->lineno);
+}
+
 static void compile_ifstmt(State* S, Function* fn, AST* ast)
 {
     assert(ast->type == AST_IF);
@@ -501,10 +511,11 @@ static void compile_constant(Function* fn, AST* ast) {
     assert(ast->type == AST_IDENTIFIER);
     if (strcmp(ast->val.str, "__LINE__") == 0) {
         emit(fn, OP_GETLINE, ast->lineno);
+        free(ast->val.str);
     } else {
-        compiletimeerror("Only currently supported constants are: '__LINE__'. '%s' not supported", ast->val.str);
+        emit(fn, OP_CLOOKUP, ast->lineno);
+        addstring(fn, overtake_ast_str(ast), ast->lineno);
     }
-    free(ast->val.str);
 }
 
 Function* compile(State* S, Function* fn, AST* ast)
@@ -562,6 +573,9 @@ Function* compile(State* S, Function* fn, AST* ast)
             break;
         case AST_ASSIGNMENT:
             compile_assignmentexpr(S, fn, ast);
+            break;
+        case AST_CONSTDECL:
+            compile_constdecl(S, fn, ast);
             break;
         case AST_HTML:
             compile_html(fn, ast);
@@ -650,6 +664,19 @@ void print_code(Function* fn, char* name)
                 *(uint16_t*)(bytes + 1) = fetch16(ip);
                 assert(*ip < fn->strlen);
                 chars_written += fprintf(stderr, "$%s", fn->strs[fetch16(ip)]);
+                ip += 2;
+                break;
+            case OP_CLOOKUP:
+                *(uint16_t*)(bytes + 1) = fetch16(ip);
+                assert(*ip < fn->strlen);
+                chars_written += fprintf(stderr, "%s", fn->strs[fetch16(ip)]);
+                ip += 2;
+                break;
+            case OP_CONSTDECL:
+                *(uint16_t*)(bytes + 1) = fetch16(ip);
+                assert(*ip < fn->strlen);
+                chars_written +=
+                    fprintf(stderr, "%s = pop()", fn->strs[fetch16(ip)]);
                 ip += 2;
                 break;
             case OP_JMP:

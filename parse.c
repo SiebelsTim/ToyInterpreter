@@ -117,6 +117,7 @@ static AST* ast_list_append(AST *block, AST *ast)
 
 static AST* parse_expr(Lexer* S);
 static AST* parse_echostmt(Lexer* S);
+static AST* parse_const(Lexer* S);
 static AST* parse_ifstmt(Lexer* S);
 static AST* parse_whilestmt(Lexer* S);
 static AST* parse_forstmt(Lexer* S);
@@ -129,6 +130,9 @@ static AST* parse_stmt(Lexer* S)
 {
     if (accept(S, TK_ECHO)) {
         return parse_echostmt(S);
+    }
+    if (accept(S, TK_CONST)) {
+        return parse_const(S);
     }
     if (accept(S, TK_IF)) {
         return parse_ifstmt(S);
@@ -343,6 +347,17 @@ static AST* parse_echostmt(Lexer* S)
 
     AST* ret = EXP1(AST_ECHO, token, expr);
     return ret;
+}
+
+static AST* parse_const(Lexer* S) 
+{
+    Token token = S->token;
+    AST* identifier = parse_identifier(S);
+    expect(S, '=');
+    AST* expr = parse_expr(S);
+    expect(S, ';');
+
+    return EXP2(AST_CONSTDECL, token, identifier, expr);
 }
 
 static AST* parse_blockstmt(Lexer* S)

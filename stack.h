@@ -29,6 +29,7 @@ typedef void (CFunction(Runtime*));
 
 typedef uint8_t codepoint_t;
 
+
 typedef struct Variant {
     VARIANTTYPE type;
     union {
@@ -40,9 +41,11 @@ typedef struct Variant {
     } u;
 } Variant;
 
+static const int VAR_FLAG_CONST = 1 << 1;
 typedef struct Variable {
     char* name;
     Variant value;
+    int flags;
 } Variable;
 
 

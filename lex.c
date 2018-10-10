@@ -147,6 +147,8 @@ static Token lex_ident(Lexer* S)
         ret = TK_WHILE;
     } else if (strcmp(str, "for") == 0) {
         ret = TK_FOR;
+    } else if(strcmp(str, "const") == 0) {
+        ret = TK_CONST;
     } else {
         ret = TK_IDENTIFIER;
         S->u.string = str;
@@ -402,7 +404,7 @@ static char* tokennames[] = {
     0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, // Ends with 255
 
     "OPENTAG", "IDENTIFIER", "ECHO", "STRING", "LONG", "FUNCTION", "RETURN", "IF", "ELSE",
-    "TRUE", "FALSE", "NULL", "VAR",
+    "TRUE", "FALSE", "NULL", "VAR", "CONST",
     "AND", "OR", "EQ", "LTEQ", "GTEQ",
     "WHILE", "FOR",
     "++", "--", "<<", ">>",
